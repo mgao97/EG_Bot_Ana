@@ -149,7 +149,7 @@ def run_structural_holes_twibot22():
     G_full = _build_eg_from_csv(path)
     if G_full is None:
         return
-    nodes = list(G_full.nodes())
+    nodes = list(G_full.nodes)
     sample = sample_nodes(nodes, 50, 2026)
     Gs = _induce_subgraph(G_full, sample)
     algos = [('HIS', 'his'), ('MaxD', 'maxd'), ('Greedy', 'greedy'), ('AP_Greedy', 'ap_greedy'), ('NOBE_GA', 'nobe_ga'), ('BICC', 'bicc')]
@@ -167,7 +167,7 @@ def run_structural_holes_twibot22():
         rows = _top5_from_result(res)
         _save_structural_holes_top5('TwiBot-22', label, rows)
         for i, (n, s) in enumerate(rows, 1):
-            print(f'{label} Top{i}: {n} {\"\" if s is None else s}')
+            print(f'{label} Top{i}: {n} {"" if s is None else s}')
 
 if __name__ == '__main__':
     run_structural_holes_twibot22()

@@ -99,7 +99,7 @@ def _load_labels_for_graph(G, path):
                     continue
             idx_vals.append(ai)
             label_vals.append(bi)
-        nodes_order = list(G.nodes())
+        nodes_order = list(G.nodes)
         if len(idx_vals) == 0:
             return np.zeros(len(nodes_order), dtype=int)
         if max(idx_vals) > len(nodes_order) - 1:
@@ -115,7 +115,7 @@ def _load_labels_for_graph(G, path):
 
 if __name__ == "__main__":
     device = torch.device('cuda:0' if (torch is not None and torch.cuda.is_available()) else 'cpu') if torch is not None else 'cpu'
-    g = _build_eg_from_csv('../dataset/TwiBot20/edge_index.csv')
+    g = _build_eg_from_csv('../dataset/TwiBot20/edge.csv')
     labels = _load_labels_for_graph(g, '../dataset/TwiBot20/label.csv')
     if torch is not None:
         torch.save(torch.as_tensor(labels), 'twibot20_labels.pt')

@@ -389,8 +389,8 @@ def main():
         ('TwiBot-20', '../dataset/TwiBot20/edge_index.csv'),
         ('MGTAB', '../dataset/MGTAB/edge_index.csv'),
     ]
-    for name, path in datasets:
-        run_dataset(name, path)
+    # for name, path in datasets:
+    #     run_dataset(name, path)
     # run_structural_holes_twibot22()
 
 if __name__ == '__main__':
