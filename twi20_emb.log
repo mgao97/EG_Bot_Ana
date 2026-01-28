@@ -1,0 +1,9 @@
+ Please install Pytorch before use graph-related datasets and hypergraph-related datasets.
+Warning raise in module:nn. Please install Pytorch, torch_geometric, torch_scatter before you use functions related to AllDeepSet and AllSetTransformer.
+Warning raise in module:model.Please install Pytorch before you use hypergraph neural networks related to Hypergraph
+Traceback (most recent call last):
+  File "/home/user/GSK/mgao/EG_Bot_Ana/twi20_emb.py", line 144, in <module>
+    g = _build_eg_from_csv('../dataset/TwiBot20/edge.csv')
+  File "/home/user/GSK/mgao/EG_Bot_Ana/twi20_emb.py", line 77, in _build_eg_from_csv
+    G.add_edge(su, tv)
+NameError: name 'G' is not defined

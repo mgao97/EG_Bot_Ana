@@ -23,6 +23,14 @@ from datetime import datetime
 import argparse
 
 warnings.filterwarnings("ignore")
+from matplotlib import rcParams
+rcParams['font.family'] = 'sans-serif'
+rcParams['font.sans-serif'] = ['SimSun']
+rcParams['axes.unicode_minus'] = False
+from matplotlib import font_manager
+font_manager.addfont('/home/user/GSK/mgao/SimSun.ttf')
+CHN_FONT = 'SimSun'
+ROMAN_FONT = 'Times New Roman'
 
 
 def _build_eg_from_csv(path):
@@ -88,16 +96,22 @@ if __name__ == "__main__":
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
     z = tsne.fit_transform(dw_emb)
     z_data = np.vstack((z.T, labels)).T
-    df_tsne = pd.DataFrame(z_data, columns=['Dimension 1', 'Dimension 2', 'Class'])
-    df_tsne['Class'] = df_tsne['Class'].astype(int)
+    df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
+    df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
     sns.set(font_scale=1.5)
-    plt.legend(loc='upper right')
-    #increase font size of all elements
-    
-    sns.scatterplot(data=df_tsne, hue='Class', x='Dimension 1', y='Dimension 2', palette=['green','orange','brown','red', 'blue','black'])
-    plt.savefig("emb_figs/dw_twibot22.pdf", bbox_inches="tight")
-    plt.savefig("emb_figs/dw_twibot22.png", bbox_inches="tight")
+    ax = plt.gca()
+    sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
+    plt.savefig("figs/dw_twibot22.pdf", bbox_inches="tight")
+    plt.xlabel('横坐标', fontname=CHN_FONT, fontsize=18)
+    plt.ylabel('纵坐标', fontname=CHN_FONT, fontsize=18)
+    for lbl in ax.get_xticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    for lbl in ax.get_yticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.show()
 
     print("Graph embedding via Node2Vec..............")
@@ -118,15 +132,23 @@ if __name__ == "__main__":
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
     z = tsne.fit_transform(n2v_emb)
     z_data = np.vstack((z.T, labels)).T
-    df_tsne = pd.DataFrame(z_data, columns=['Dimension 1', 'Dimension 2', 'Class'])
-    df_tsne['Class'] = df_tsne['Class'].astype(int)
+    df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
+    df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
-    plt.legend(loc='upper right')
     sns.set(font_scale=1.5)
-    sns.scatterplot(data=df_tsne, hue='Class', x='Dimension 1', y='Dimension 2', palette=['green','orange','brown','red', 'blue','black'])
+    ax = plt.gca()
+    sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     
-    plt.savefig("emb_figs/n2v_twibot22.pdf", bbox_inches="tight")
-    plt.savefig("emb_figs/n2v_twibot22.png", bbox_inches="tight")
+    plt.savefig("figs/n2v_twibot22.pdf", bbox_inches="tight")
+    plt.xlabel('横坐标', fontname=CHN_FONT, fontsize=18)
+    plt.ylabel('纵坐标', fontname=CHN_FONT, fontsize=18)
+    for lbl in ax.get_xticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    for lbl in ax.get_yticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.show()
 
     print("Graph embedding via LINE........")
@@ -148,15 +170,23 @@ if __name__ == "__main__":
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
     z = tsne.fit_transform(l_emb)
     z_data = np.vstack((z.T, labels)).T
-    df_tsne = pd.DataFrame(z_data, columns=['Dimension 1', 'Dimension 2', 'Class'])
-    df_tsne['Class'] = df_tsne['Class'].astype(int)
+    df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
+    df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
-    plt.legend(loc='upper right')
     sns.set(font_scale=1.5)
-    sns.scatterplot(data=df_tsne, hue='Class', x='Dimension 1', y='Dimension 2', palette=['green','orange','brown','red', 'blue','black'])
+    ax = plt.gca()
+    sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     
-    plt.savefig("emb_figs/line_twibot22.pdf", bbox_inches="tight")
-    plt.savefig("emb_figs/line_twibot22.png", bbox_inches="tight")
+    plt.savefig("figs/line_twibot22.pdf", bbox_inches="tight")
+    plt.xlabel('横坐标', fontname=CHN_FONT, fontsize=18)
+    plt.ylabel('纵坐标', fontname=CHN_FONT, fontsize=18)
+    for lbl in ax.get_xticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    for lbl in ax.get_yticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.show()
 
     print("Graph embedding via SDNE...........")
@@ -175,14 +205,21 @@ if __name__ == "__main__":
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
     z = tsne.fit_transform(sd_emb)
     z_data = np.vstack((z.T, labels)).T
-    df_tsne = pd.DataFrame(z_data, columns=['Dimension 1', 'Dimension 2', 'Class'])
-    df_tsne['Class'] = df_tsne['Class'].astype(int)
+    df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
+    df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
     sns.set(font_scale=1.5)
-    # plt.legend(loc='upper right')
+    ax = plt.gca()
+    sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     
-    sns.scatterplot(data=df_tsne, hue='Class', x='Dimension 1', y='Dimension 2', palette=['green','orange','brown','red', 'blue','black'])
-    
-    plt.savefig("emb_figs/sdne_twibot22.pdf", bbox_inches="tight")
-    plt.savefig("emb_figs/sdne_twibot22.png", bbox_inches="tight")
+    plt.savefig("figs/sdne_twibot22.pdf", bbox_inches="tight")
+    plt.xlabel('横坐标', fontname=CHN_FONT, fontsize=18)
+    plt.ylabel('纵坐标', fontname=CHN_FONT, fontsize=18)
+    for lbl in ax.get_xticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    for lbl in ax.get_yticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.show()

@@ -1,0 +1,34 @@
+ Please install Pytorch before use graph-related datasets and hypergraph-related datasets.
+Warning raise in module:nn. Please install Pytorch, torch_geometric, torch_scatter before you use functions related to AllDeepSet and AllSetTransformer.
+Warning raise in module:model.Please install Pytorch before you use hypergraph neural networks related to Hypergraph
+attr subgraph doesn't exist!
+HIS Top1: 115
+HIS Top2: 12
+HIS Top3: 8289
+HIS Top4: 48
+HIS Top5: 113
+MaxD Top1: 354
+MaxD Top2: 115
+MaxD Top3: 65
+MaxD Top4: 24632
+MaxD Top5: 113
+AP_Greedy Top1: 354
+AP_Greedy Top2: 115
+AP_Greedy Top3: 48
+AP_Greedy Top4: 24632
+AP_Greedy Top5: 12
+NOBE_GA Top1: 48
+NOBE_GA Top2: 4
+NOBE_GA Top3: 5
+NOBE_GA Top4: 6
+NOBE_GA Top5: 7
+NOBE Top1: 5
+NOBE Top2: 50
+NOBE Top3: 7
+NOBE Top4: 18
+NOBE Top5: 51
+BICC Top1: 57
+BICC Top2: 70
+BICC Top3: 29
+BICC Top4: 55
+BICC Top5: 7

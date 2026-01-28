@@ -1,0 +1,10 @@
+ Please install Pytorch before use graph-related datasets and hypergraph-related datasets.
+Warning raise in module:nn. Please install Pytorch, torch_geometric, torch_scatter before you use functions related to AllDeepSet and AllSetTransformer.
+Warning raise in module:model.Please install Pytorch before you use hypergraph neural networks related to Hypergraph
+Graph embedding via DeepWalk...........
+Walk iteration:
+  0%|          | 0/10 [00:00<?, ?it/s] 10%|█         | 1/10 [25:23<3:48:34, 1523.80s/it] 20%|██        | 2/10 [50:29<3:21:46, 1513.36s/it] 30%|███       | 3/10 [1:15:35<2:56:08, 1509.79s/it] 40%|████      | 4/10 [1:40:43<2:30:55, 1509.29s/it] 50%|█████     | 5/10 [2:05:49<2:05:40, 1508.05s/it] 60%|██████    | 6/10 [2:30:55<1:40:28, 1507.16s/it] 70%|███████   | 7/10 [2:56:04<1:15:23, 1507.84s/it] 80%|████████  | 8/10 [3:21:09<50:13, 1506.99s/it]   90%|█████████ | 9/10 [3:46:21<25:08, 1508.53s/it]100%|██████████| 10/10 [4:11:26<00:00, 1507.55s/it]100%|██████████| 10/10 [4:11:26<00:00, 1508.69s/it]
+Traceback (most recent call last):
+  File "/home/user/GSK/mgao/EG_Bot_Ana/twi22_emb.py", line 81, in <module>
+    dw_emb.append(list(deepwalk_emb[i]))
+KeyError: 4787

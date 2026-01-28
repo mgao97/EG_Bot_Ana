@@ -1,0 +1,7 @@
+ Please install Pytorch before use graph-related datasets and hypergraph-related datasets.
+Warning raise in module:nn. Please install Pytorch, torch_geometric, torch_scatter before you use functions related to AllDeepSet and AllSetTransformer.
+Warning raise in module:model.Please install Pytorch before you use hypergraph neural networks related to Hypergraph
+Traceback (most recent call last):
+  File "/home/user/GSK/mgao/EG_Bot_Ana/mgtab_emb.py", line 29, in <module>
+    font_manager.addfont('/home/user/GSK/mgao/SimSun.ttf')
+AttributeError: module 'matplotlib.font_manager' has no attribute 'addfont'. Did you mean: 'findfont'?

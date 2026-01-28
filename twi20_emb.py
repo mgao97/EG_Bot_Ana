@@ -23,13 +23,48 @@ from datetime import datetime
 import argparse
 
 warnings.filterwarnings("ignore")
+from matplotlib import rcParams
+rcParams['font.family'] = 'sans-serif'
+rcParams['font.sans-serif'] = ['SimSun']
+rcParams['axes.unicode_minus'] = False
+from matplotlib import font_manager
+font_manager.addfont('/home/user/GSK/mgao/SimSun.ttf')
+
+CHN_FONT = 'SimSun'
+ROMAN_FONT = 'Times New Roman'
+
+def _emb_matrix(embeddings, nodes_order, dim_hint=None):
+    rows = []
+    if isinstance(embeddings, dict):
+        for n in nodes_order:
+            v = embeddings.get(n)
+            if v is None:
+                v = embeddings.get(str(n))
+            if v is None:
+                if dim_hint is None:
+                    dim_hint = len(next(iter(embeddings.values())))
+                v = np.zeros(dim_hint)
+            rows.append(np.asarray(v))
+        return np.vstack(rows)
+    try:
+        if dim_hint is None and len(embeddings) > 0:
+            try:
+                dim_hint = len(embeddings[0])
+            except Exception:
+                dim_hint = None
+        if set(nodes_order) == set(range(len(embeddings))):
+            for n in nodes_order:
+                rows.append(np.asarray(embeddings[n]))
+            return np.vstack(rows)
+        return np.asarray(list(embeddings))
+    except Exception:
+        return np.asarray(list(embeddings))
 
 
 def _build_eg_from_csv(path):
     with open(path, 'r') as f:
         first = f.readline().strip()
     toks = [t.strip().lower() for t in first.split(',')]
-    G = eg.Graph()
     if 'relation' in toks or 'source' in toks or 'source_id' in toks:
         with open(path, 'r') as f:
             r = csv.reader(f)
@@ -117,64 +152,66 @@ if __name__ == "__main__":
     device = torch.device('cuda:0' if (torch is not None and torch.cuda.is_available()) else 'cpu') if torch is not None else 'cpu'
     g = _build_eg_from_csv('../dataset/TwiBot20/edge.csv')
     labels = _load_labels_for_graph(g, '../dataset/TwiBot20/label.csv')
+    nodes_order = list(g.nodes)
     if torch is not None:
         torch.save(torch.as_tensor(labels), 'twibot20_labels.pt')
 
     print("Graph embedding via DeepWalk...........")
     deepwalk_emb, _ = deepwalk(g, dimensions=128, walk_length=80, num_walks=10)
-    # print(deepwalk_emb, len(deepwalk_emb))
-
-    dw_emb = []
-    for i in range(0, len(deepwalk_emb)):
-        dw_emb.append(list(deepwalk_emb[i]))
-    #   print(len(dw_emb))
+    dw_emb = _emb_matrix(deepwalk_emb, nodes_order, dim_hint=128)
     if torch is not None:
         torch.save(dw_emb,'dw_twibot20_emb.pt')
-    dw_emb = np.array(dw_emb)
     print(dw_emb)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
     z = tsne.fit_transform(dw_emb)
     z_data = np.vstack((z.T, labels)).T
-    df_tsne = pd.DataFrame(z_data, columns=['Dimension 1', 'Dimension 2', 'Class'])
-    df_tsne['Class'] = df_tsne['Class'].astype(int)
+    df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
+    df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
     sns.set(font_scale=1.5)
-    plt.legend(loc='upper right')
-    #increase font size of all elements
-    
-    sns.scatterplot(data=df_tsne, hue='Class', x='Dimension 1', y='Dimension 2', palette=['green','orange','brown','red', 'blue','black'])
-    plt.savefig("emb_figs/dw_twibot20.pdf", bbox_inches="tight")
-    plt.savefig("emb_figs/dw_twibot20.png", bbox_inches="tight")
+    ax = plt.gca()
+    sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
+    plt.savefig("figs/dw_twibot20.pdf", bbox_inches="tight")
+    plt.xlabel('横坐标', fontname=CHN_FONT, fontsize=18)
+    plt.ylabel('纵坐标', fontname=CHN_FONT, fontsize=18)
+    for lbl in ax.get_xticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    for lbl in ax.get_yticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.show()
 
     print("Graph embedding via Node2Vec..............")
     node2vec_emb, _ = node2vec(
         g, dimensions=128, walk_length=80, num_walks=10, p=4, q=0.25
     )
-    # print(node2vec_emb, len(node2vec_emb))
-
-    n2v_emb = []
-    for i in range(0, len(node2vec_emb)):
-        n2v_emb.append(list(node2vec_emb[i]))
-    # print(len(n2v_emb))
+    n2v_emb = _emb_matrix(node2vec_emb, nodes_order, dim_hint=128)
     if torch is not None:
         torch.save(n2v_emb,'n2v_twibot20_emb.pt')
-    n2v_emb = np.array(n2v_emb)
-    # print(n2v_emb)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
     z = tsne.fit_transform(n2v_emb)
     z_data = np.vstack((z.T, labels)).T
-    df_tsne = pd.DataFrame(z_data, columns=['Dimension 1', 'Dimension 2', 'Class'])
-    df_tsne['Class'] = df_tsne['Class'].astype(int)
+    df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
+    df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
-    plt.legend(loc='upper right')
     sns.set(font_scale=1.5)
-    sns.scatterplot(data=df_tsne, hue='Class', x='Dimension 1', y='Dimension 2', palette=['green','orange','brown','red', 'blue','black'])
+    ax = plt.gca()
+    sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     
-    plt.savefig("emb_figs/n2v_twibot20.pdf", bbox_inches="tight")
-    plt.savefig("emb_figs/n2v_twibot20.png", bbox_inches="tight")
+    plt.savefig("figs/n2v_twibot20.pdf", bbox_inches="tight")
+    plt.xlabel('横坐标', fontname=CHN_FONT, fontsize=18)
+    plt.ylabel('纵坐标', fontname=CHN_FONT, fontsize=18)
+    for lbl in ax.get_xticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    for lbl in ax.get_yticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.show()
 
     print("Graph embedding via LINE........")
@@ -183,54 +220,59 @@ if __name__ == "__main__":
 
     model.train()
     line_emb = model(g, return_dict=True)
-
-    l_emb = []
-    for i in range(0, len(line_emb)):
-        l_emb.append(list(line_emb[i]))
-    #   print(len(l_emb))
+    l_emb = _emb_matrix(line_emb, nodes_order, dim_hint=128)
     if torch is not None:
         torch.save(l_emb,'line_twibot20_emb.pt')
-    l_emb = np.array(l_emb)
-    # print(l_emb)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
     z = tsne.fit_transform(l_emb)
     z_data = np.vstack((z.T, labels)).T
-    df_tsne = pd.DataFrame(z_data, columns=['Dimension 1', 'Dimension 2', 'Class'])
-    df_tsne['Class'] = df_tsne['Class'].astype(int)
+    df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
+    df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
-    plt.legend(loc='upper right')
     sns.set(font_scale=1.5)
-    sns.scatterplot(data=df_tsne, hue='Class', x='Dimension 1', y='Dimension 2', palette=['green','orange','brown','red', 'blue','black'])
+    ax = plt.gca()
+    sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     
-    plt.savefig("emb_figs/line_twibot20.pdf", bbox_inches="tight")
-    plt.savefig("emb_figs/line_twibot20.png", bbox_inches="tight")
+    plt.savefig("figs/line_twibot20.pdf", bbox_inches="tight")
+    plt.xlabel('横坐标', fontname=CHN_FONT, fontsize=18)
+    plt.ylabel('纵坐标', fontname=CHN_FONT, fontsize=18)
+    for lbl in ax.get_xticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    for lbl in ax.get_yticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.show()
 
     print("Graph embedding via SDNE...........")
     model = eg.SDNE(g, node_size=len(g.nodes), nhid0=200, nhid1=100, dropout=0.25, alpha=3e-2, beta=5)
     sdne_emb = model.train(model)
 
-    sd_emb = []
-    for i in range(0, len(sdne_emb)):
-        sd_emb.append(list(sdne_emb[i]))
-    #   print(len(sd_emb))
+    sd_emb = _emb_matrix(sdne_emb, nodes_order, dim_hint=100)
     if torch is not None:
         torch.save(sd_emb,'sd_twibot20_emb.pt')
-    sd_emb = np.array(sd_emb)
     print(sd_emb)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
     z = tsne.fit_transform(sd_emb)
     z_data = np.vstack((z.T, labels)).T
-    df_tsne = pd.DataFrame(z_data, columns=['Dimension 1', 'Dimension 2', 'Class'])
-    df_tsne['Class'] = df_tsne['Class'].astype(int)
+    df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
+    df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
     sns.set(font_scale=1.5)
-    # plt.legend(loc='upper right')
+    ax = plt.gca()
+    sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     
-    sns.scatterplot(data=df_tsne, hue='Class', x='Dimension 1', y='Dimension 2', palette=['green','orange','brown','red', 'blue','black'])
-    
-    plt.savefig("emb_figs/sdne_twibot20.pdf", bbox_inches="tight")
-    plt.savefig("emb_figs/sdne_twibot20.png", bbox_inches="tight")
+    plt.savefig("figs/sdne_twibot20.pdf", bbox_inches="tight")
+    plt.xlabel('横坐标', fontname=CHN_FONT, fontsize=18)
+    plt.ylabel('纵坐标', fontname=CHN_FONT, fontsize=18)
+    for lbl in ax.get_xticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    for lbl in ax.get_yticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.show()

@@ -7,10 +7,8 @@ import matplotlib.pyplot as plt
 import numpy as np
 import pandas as pd
 import seaborn as sns
-try:
-    import torch
-except Exception:
-    torch = None
+import torch
+
 
 from easygraph.functions.community import greedy_modularity_communities
 from easygraph.functions.community import modularity
@@ -23,7 +21,61 @@ from datetime import datetime
 import argparse
 
 warnings.filterwarnings("ignore")
+from matplotlib import rcParams
+rcParams['font.family'] = 'sans-serif'
+rcParams['font.sans-serif'] = ['SimSun']
+rcParams['axes.unicode_minus'] = False
+from matplotlib import font_manager
+font_manager.addfont('/home/user/GSK/mgao/SimSun.ttf')
+CHN_FONT = 'SimSun'
+ROMAN_FONT = 'Times New Roman'
 
+def _load_labels_pt(path):
+    try:
+        t = torch.load(path, map_location='cpu')
+        if isinstance(t, torch.Tensor):
+            arr = t.cpu().numpy()
+        else:
+            arr = np.asarray(t)
+        arr = np.asarray(arr, dtype=int).flatten()
+        return arr
+    except Exception:
+        return np.asarray([], dtype=int)
+
+def _align_labels(labels, n):
+    if len(labels) >= n:
+        return labels[:n]
+    if len(labels) == 0:
+        return np.zeros(n, dtype=int)
+    pad = np.zeros(n - len(labels), dtype=int)
+    return np.concatenate([labels, pad])
+
+def _emb_matrix(embeddings, nodes_order, dim_hint=None):
+    rows = []
+    if isinstance(embeddings, dict):
+        for n in nodes_order:
+            v = embeddings.get(n)
+            if v is None:
+                v = embeddings.get(str(n))
+            if v is None:
+                if dim_hint is None:
+                    dim_hint = len(next(iter(embeddings.values())))
+                v = np.zeros(dim_hint)
+            rows.append(np.asarray(v))
+        return np.vstack(rows)
+    try:
+        if dim_hint is None and len(embeddings) > 0:
+            try:
+                dim_hint = len(embeddings[0])
+            except Exception:
+                dim_hint = None
+        if set(nodes_order) == set(range(len(embeddings))):
+            for n in nodes_order:
+                rows.append(np.asarray(embeddings[n]))
+            return np.vstack(rows)
+        return np.asarray(list(embeddings))
+    except Exception:
+        return np.asarray(list(embeddings))
 
 def _build_eg_from_csv(path):
     with open(path, 'r') as f:
@@ -68,65 +120,67 @@ def _build_eg_from_csv(path):
 if __name__ == "__main__":
     device = torch.device('cuda:0' if (torch is not None and torch.cuda.is_available()) else 'cpu') if torch is not None else 'cpu'
     g = _build_eg_from_csv('../dataset/MGTAB/edge_index.csv')
-    labels = np.zeros(len(g.nodes), dtype=int)
-    if torch is not None:
-        torch.save(torch.as_tensor(labels), 'mgtab_labels.pt')
+    labels_raw = _load_labels_pt('/home/user/GSK/mgao/dataset/TwiBot22/label.pt')
+    nodes_order = list(g.nodes)
 
     print("Graph embedding via DeepWalk...........")
     deepwalk_emb, _ = deepwalk(g, dimensions=128, walk_length=80, num_walks=10)
-    # print(deepwalk_emb, len(deepwalk_emb))
-
-    dw_emb = []
-    for i in range(0, len(deepwalk_emb)):
-        dw_emb.append(list(deepwalk_emb[i]))
-    #   print(len(dw_emb))
+    dw_emb = _emb_matrix(deepwalk_emb, nodes_order, dim_hint=128)
     if torch is not None:
         torch.save(dw_emb,'dw_mgtab_emb.pt')
-    dw_emb = np.array(dw_emb)
     print(dw_emb)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
     z = tsne.fit_transform(dw_emb)
-    z_data = np.vstack((z.T, labels)).T
-    df_tsne = pd.DataFrame(z_data, columns=['Dimension 1', 'Dimension 2', 'Class'])
-    df_tsne['Class'] = df_tsne['Class'].astype(int)
+    labels_dw = _align_labels(labels_raw, len(dw_emb))
+    z_data = np.vstack((z.T, labels_dw)).T
+    df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
+    df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
     sns.set(font_scale=1.5)
-    plt.legend(loc='upper right')
-    #increase font size of all elements
-    
-    sns.scatterplot(data=df_tsne, hue='Class', x='Dimension 1', y='Dimension 2', palette=['green','orange','brown','red', 'blue','black'])
-    plt.savefig("emb_figs/dw_mgtab.pdf", bbox_inches="tight")
-    plt.savefig("emb_figs/dw_mgtab.png", bbox_inches="tight")
+    ax = plt.gca()
+    sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
+    plt.savefig("figs/dw_mgtab.pdf", bbox_inches="tight")
+    plt.xlabel('', fontname=CHN_FONT, fontsize=18)
+    plt.ylabel('', fontname=CHN_FONT, fontsize=18)
+    for lbl in ax.get_xticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    for lbl in ax.get_yticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.show()
 
     print("Graph embedding via Node2Vec..............")
     node2vec_emb, _ = node2vec(
         g, dimensions=128, walk_length=80, num_walks=10, p=4, q=0.25
     )
-    # print(node2vec_emb, len(node2vec_emb))
-
-    n2v_emb = []
-    for i in range(0, len(node2vec_emb)):
-        n2v_emb.append(list(node2vec_emb[i]))
-    # print(len(n2v_emb))
+    n2v_emb = _emb_matrix(node2vec_emb, nodes_order, dim_hint=128)
     if torch is not None:
         torch.save(n2v_emb,'n2v_mgtab_emb.pt')
-    n2v_emb = np.array(n2v_emb)
-    # print(n2v_emb)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
     z = tsne.fit_transform(n2v_emb)
-    z_data = np.vstack((z.T, labels)).T
-    df_tsne = pd.DataFrame(z_data, columns=['Dimension 1', 'Dimension 2', 'Class'])
-    df_tsne['Class'] = df_tsne['Class'].astype(int)
+    labels_n2v = _align_labels(labels_raw, len(n2v_emb))
+    z_data = np.vstack((z.T, labels_n2v)).T
+    df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
+    df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
-    plt.legend(loc='upper right')
     sns.set(font_scale=1.5)
-    sns.scatterplot(data=df_tsne, hue='Class', x='Dimension 1', y='Dimension 2', palette=['green','orange','brown','red', 'blue','black'])
+    ax = plt.gca()
+    sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     
-    plt.savefig("emb_figs/n2v_mgtab.pdf", bbox_inches="tight")
-    plt.savefig("emb_figs/n2v_mgtab.png", bbox_inches="tight")
+    plt.savefig("figs/n2v_mgtab.pdf", bbox_inches="tight")
+    plt.xlabel('', fontname=CHN_FONT, fontsize=18)
+    plt.ylabel('', fontname=CHN_FONT, fontsize=18)
+    for lbl in ax.get_xticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    for lbl in ax.get_yticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.show()
 
     print("Graph embedding via LINE........")
@@ -136,53 +190,59 @@ if __name__ == "__main__":
     model.train()
     line_emb = model(g, return_dict=True)
 
-    l_emb = []
-    for i in range(0, len(line_emb)):
-        l_emb.append(list(line_emb[i]))
-    #   print(len(l_emb))
+    l_emb = _emb_matrix(line_emb, nodes_order, dim_hint=128)
     if torch is not None:
         torch.save(l_emb,'line_mgtab_emb.pt')
-    l_emb = np.array(l_emb)
-    # print(l_emb)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
     z = tsne.fit_transform(l_emb)
-    z_data = np.vstack((z.T, labels)).T
-    df_tsne = pd.DataFrame(z_data, columns=['Dimension 1', 'Dimension 2', 'Class'])
-    df_tsne['Class'] = df_tsne['Class'].astype(int)
+    labels_line = _align_labels(labels_raw, len(l_emb))
+    z_data = np.vstack((z.T, labels_line)).T
+    df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
+    df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
-    plt.legend(loc='upper right')
     sns.set(font_scale=1.5)
-    sns.scatterplot(data=df_tsne, hue='Class', x='Dimension 1', y='Dimension 2', palette=['green','orange','brown','red', 'blue','black'])
+    ax = plt.gca()
+    sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     
-    plt.savefig("emb_figs/line_mgtab.pdf", bbox_inches="tight")
-    plt.savefig("emb_figs/line_mgtab.png", bbox_inches="tight")
+    plt.savefig("figs/line_mgtab.pdf", bbox_inches="tight")
+    plt.xlabel('', fontname=CHN_FONT, fontsize=18)
+    plt.ylabel('', fontname=CHN_FONT, fontsize=18)
+    for lbl in ax.get_xticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    for lbl in ax.get_yticklabels():
+        lbl.set_fontname(ROMAN_FONT)
+        lbl.set_fontsize(18)
+    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.show()
 
-    print("Graph embedding via SDNE...........")
-    model = eg.SDNE(g, node_size=len(g.nodes), nhid0=200, nhid1=100, dropout=0.25, alpha=3e-2, beta=5)
-    sdne_emb = model.train(model)
-
-    sd_emb = []
-    for i in range(0, len(sdne_emb)):
-        sd_emb.append(list(sdne_emb[i]))
-    #   print(len(sd_emb))
     if torch is not None:
+        print("Graph embedding via SDNE...........")
+        node_size_val = (max(g.nodes) + 1) if len(g.nodes) > 0 else 0
+        model = eg.SDNE(g, node_size=node_size_val, nhid0=200, nhid1=100, dropout=0.25, alpha=3e-2, beta=5)
+        sdne_emb = model.train(model)
+        sd_emb = _emb_matrix(sdne_emb, nodes_order, dim_hint=100)
         torch.save(sd_emb,'sd_mgtab_emb.pt')
-    sd_emb = np.array(sd_emb)
-    print(sd_emb)
-
-    tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    z = tsne.fit_transform(sd_emb)
-    z_data = np.vstack((z.T, labels)).T
-    df_tsne = pd.DataFrame(z_data, columns=['Dimension 1', 'Dimension 2', 'Class'])
-    df_tsne['Class'] = df_tsne['Class'].astype(int)
-    plt.figure(figsize=(8, 8))
-    sns.set(font_scale=1.5)
-    # plt.legend(loc='upper right')
-    
-    sns.scatterplot(data=df_tsne, hue='Class', x='Dimension 1', y='Dimension 2', palette=['green','orange','brown','red', 'blue','black'])
-    
-    plt.savefig("emb_figs/sdne_mgtab.pdf", bbox_inches="tight")
-    plt.savefig("emb_figs/sdne_mgtab.png", bbox_inches="tight")
-    plt.show()
+        print(sd_emb)
+        tsne = TSNE(n_components=2, verbose=1, random_state=0)
+        z = tsne.fit_transform(sd_emb)
+        labels_sdne = _align_labels(labels_raw, len(sd_emb))
+        z_data = np.vstack((z.T, labels_sdne)).T
+        df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
+        df_tsne['类别'] = df_tsne['类别'].astype(int)
+        plt.figure(figsize=(8, 8))
+        sns.set(font_scale=1.5)
+        ax = plt.gca()
+        sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
+        plt.savefig("figs/sdne_mgtab.pdf", bbox_inches="tight")
+        plt.xlabel('', fontname=CHN_FONT, fontsize=18)
+        plt.ylabel('', fontname=CHN_FONT, fontsize=18)
+        for lbl in ax.get_xticklabels():
+            lbl.set_fontname(ROMAN_FONT)
+            lbl.set_fontsize(18)
+        for lbl in ax.get_yticklabels():
+            lbl.set_fontname(ROMAN_FONT)
+            lbl.set_fontsize(18)
+        ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+        plt.show()
