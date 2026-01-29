@@ -7,6 +7,19 @@ import easygraph as eg
 from easygraph.functions.community import louvain_communities
 import torch
 
+from matplotlib import rcParams
+rcParams['font.family'] = 'sans-serif'
+rcParams['font.sans-serif'] = ['SimSun']
+rcParams['axes.unicode_minus'] = False
+from matplotlib import font_manager
+times_path = '/usr/share/fonts/Times/times.ttf'     # 新罗马字体 
+simsun_path = '/usr/share/fonts/sim/simsun.ttc'   # 宋体 
+font_manager.fontManager.addfont(simsun_path)
+font_manager.fontManager.addfont(times_path)
+
+CHN_FONT = 'SimSun'
+ROMAN_FONT = 'Times New Roman'
+
 colors = ['#F49193', '#9ED8EC']
 
 def curved_edges(G, pos, dist_ratio=0.2, bezier_precision=20, polarity='random'):
@@ -180,7 +193,7 @@ for i, ax in enumerate(axes.flatten()):
     nx.draw_networkx_nodes(G, pos, ax=ax, node_size=200, node_color=node_colors, alpha=0.8)
 
     # 绘制标签
-    nx.draw_networkx_labels(G, pos, ax=ax, font_size=8, font_family='Arial', font_color='black')
+    nx.draw_networkx_labels(G, pos, ax=ax, font_size=8, font_family=ROMAN_FONT, font_color='black')
 
     # 直接添加预计算的连线集合
     lc = LineCollection(curves, color='#999999', alpha=0.4)

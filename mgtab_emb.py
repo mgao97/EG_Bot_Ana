@@ -2,6 +2,7 @@
 import csv
 import time
 import random
+import os
 
 import easygraph as eg
 import matplotlib.pyplot as plt
@@ -27,7 +28,11 @@ rcParams['font.family'] = 'sans-serif'
 rcParams['font.sans-serif'] = ['SimSun']
 rcParams['axes.unicode_minus'] = False
 from matplotlib import font_manager
-font_manager.fontManager.addfont('/usr/share/fonts/sim/simsun.ttc')
+times_path = '/usr/share/fonts/Times/times.ttf'     # 新罗马字体 
+simsun_path = '/usr/share/fonts/sim/simsun.ttc'   # 宋体 
+font_manager.fontManager.addfont(simsun_path)
+font_manager.fontManager.addfont(times_path)
+
 CHN_FONT = 'SimSun'
 ROMAN_FONT = 'Times New Roman'
 
@@ -121,14 +126,21 @@ def _build_eg_from_csv(path):
 if __name__ == "__main__":
     device = torch.device('cuda:0' if (torch is not None and torch.cuda.is_available()) else 'cpu') if torch is not None else 'cpu'
     g = _build_eg_from_csv('/NVMeDATA/gxj_data/hyperscan_cikm25/mgtab/edge_index.csv')
-    labels_raw = _load_labels_pt('/NVMeDATA/gxj_data/hyperscan_cikm25/mgtab/label.pt')
+    labels_raw = _load_labels_pt('/NVMeDATA/gxj_data/hyperscan_cikm25/mgtab/labels_bot.pt')
     nodes_order = list(g.nodes)
 
     print("Graph embedding via DeepWalk...........")
-    deepwalk_emb, _ = deepwalk(g, dimensions=128, walk_length=80, num_walks=10)
-    dw_emb = _emb_matrix(deepwalk_emb, nodes_order, dim_hint=128)
-    if torch is not None:
-        torch.save(dw_emb,'dw_mgtab_emb.pt')
+    dw_path = 'graph_embs/dw_mgtab_emb.pt'
+    if os.path.exists(dw_path):
+        print(f"Loading DeepWalk embeddings from {dw_path}...")
+        dw_emb = torch.load(dw_path, map_location='cpu')
+    else:
+        deepwalk_emb, _ = deepwalk(g, dimensions=128, walk_length=80, num_walks=10)
+        dw_emb = _emb_matrix(deepwalk_emb, nodes_order, dim_hint=128)
+        if torch is not None:
+            if not os.path.exists('graph_embs'):
+                os.makedirs('graph_embs')
+            torch.save(dw_emb, dw_path)
     print(dw_emb)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
@@ -154,20 +166,28 @@ if __name__ == "__main__":
     for lbl in ax.get_yticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
+    plt.xlabel('')
+    plt.ylabel('')
     # 设置 legend 为宋体
-    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
-    plt.xlabel('x', fontname=CHN_FONT, fontsize=18)
-    plt.ylabel('y', fontname=CHN_FONT, fontsize=18)
+    legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
     plt.savefig("figs/dw_mgtab.pdf", bbox_inches="tight")
     plt.show()
 
     print("Graph embedding via Node2Vec..............")
-    node2vec_emb, _ = node2vec(
-        g, dimensions=128, walk_length=80, num_walks=10, p=4, q=0.25
-    )
-    n2v_emb = _emb_matrix(node2vec_emb, nodes_order, dim_hint=128)
-    if torch is not None:
-        torch.save(n2v_emb,'n2v_mgtab_emb.pt')
+    n2v_path = 'graph_embs/n2v_mgtab_emb.pt'
+    if os.path.exists(n2v_path):
+        print(f"Loading Node2Vec embeddings from {n2v_path}...")
+        n2v_emb = torch.load(n2v_path, map_location='cpu')
+    else:
+        node2vec_emb, _ = node2vec(
+            g, dimensions=128, walk_length=80, num_walks=10, p=4, q=0.25
+        )
+        n2v_emb = _emb_matrix(node2vec_emb, nodes_order, dim_hint=128)
+        if torch is not None:
+            if not os.path.exists('graph_embs'):
+                os.makedirs('graph_embs')
+            torch.save(n2v_emb, n2v_path)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
     max_n = min(1000, len(n2v_emb))
@@ -192,23 +212,30 @@ if __name__ == "__main__":
     for lbl in ax.get_yticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
+    plt.xlabel('')
+    plt.ylabel('')
     # 设置 legend 为宋体
-    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
-    plt.xlabel('x', fontname=CHN_FONT, fontsize=18)
-    plt.ylabel('y', fontname=CHN_FONT, fontsize=18)
+    legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
     plt.savefig("figs/n2v_mgtab.pdf", bbox_inches="tight")
     plt.show()
 
     print("Graph embedding via LINE........")
-    
-    model = LINE(dimension=128, walk_length=80, walk_num=10, negative=5, batch_size=128, init_alpha=0.025, order=2)
+    l_path = 'graph_embs/line_mgtab_emb.pt'
+    if os.path.exists(l_path):
+        print(f"Loading LINE embeddings from {l_path}...")
+        l_emb = torch.load(l_path, map_location='cpu')
+    else:
+        model = LINE(dimension=128, walk_length=80, walk_num=10, negative=5, batch_size=128, init_alpha=0.025, order=2)
 
-    model.train()
-    line_emb = model(g, return_dict=True)
+        model.train()
+        line_emb = model(g, return_dict=True)
 
-    l_emb = _emb_matrix(line_emb, nodes_order, dim_hint=128)
-    if torch is not None:
-        torch.save(l_emb,'line_mgtab_emb.pt')
+        l_emb = _emb_matrix(line_emb, nodes_order, dim_hint=128)
+        if torch is not None:
+            if not os.path.exists('graph_embs'):
+                os.makedirs('graph_embs')
+            torch.save(l_emb, l_path)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
     max_n = min(1000, len(l_emb))
@@ -233,20 +260,28 @@ if __name__ == "__main__":
     for lbl in ax.get_yticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
+    plt.xlabel('')
+    plt.ylabel('')
     # 设置 legend 为宋体
-    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
-    plt.xlabel('x', fontname=CHN_FONT, fontsize=18)
-    plt.ylabel('y', fontname=CHN_FONT, fontsize=18)
+    legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
     plt.savefig("figs/line_mgtab.pdf", bbox_inches="tight")
     plt.show()
 
     if torch is not None:
         print("Graph embedding via SDNE...........")
-        node_size_val = (max(g.nodes) + 1) if len(g.nodes) > 0 else 0
-        model = eg.SDNE(g, node_size=node_size_val, nhid0=200, nhid1=100, dropout=0.25, alpha=3e-2, beta=5)
-        sdne_emb = model.train(model)
-        sd_emb = _emb_matrix(sdne_emb, nodes_order, dim_hint=100)
-        torch.save(sd_emb,'sd_mgtab_emb.pt')
+        sd_path = 'graph_embs/sd_mgtab_emb.pt'
+        if os.path.exists(sd_path):
+            print(f"Loading SDNE embeddings from {sd_path}...")
+            sd_emb = torch.load(sd_path, map_location='cpu')
+        else:
+            node_size_val = (max(g.nodes) + 1) if len(g.nodes) > 0 else 0
+            model = eg.SDNE(g, node_size=node_size_val, nhid0=200, nhid1=100, dropout=0.25, alpha=3e-2, beta=5)
+            sdne_emb = model.train(model)
+            sd_emb = _emb_matrix(sdne_emb, nodes_order, dim_hint=100)
+            if not os.path.exists('graph_embs'):
+                os.makedirs('graph_embs')
+            torch.save(sd_emb, sd_path)
         print(sd_emb)
         tsne = TSNE(n_components=2, verbose=1, random_state=0)
         max_n = min(1000, len(sd_emb))
@@ -271,9 +306,10 @@ if __name__ == "__main__":
         for lbl in ax.get_yticklabels():
             lbl.set_fontname(ROMAN_FONT)
             lbl.set_fontsize(18)
+        plt.xlabel('')
+        plt.ylabel('')
         # 设置 legend 为宋体
-        ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
-        plt.xlabel('x', fontname=CHN_FONT, fontsize=18)
-        plt.ylabel('y', fontname=CHN_FONT, fontsize=18)
+        legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+        plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
         plt.savefig("figs/sdne_mgtab.pdf", bbox_inches="tight")
         plt.show()

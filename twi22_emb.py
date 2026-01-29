@@ -159,20 +159,24 @@ if __name__ == "__main__":
     z_data = np.vstack((z.T, labels_sub)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
     df_tsne['类别'] = df_tsne['类别'].astype(int)
+    # 将数值类别映射为中文标签
+    label_map = {0: "人类", 1: "社交机器人"}
+    df_tsne['类别'] = df_tsne['类别'].map(label_map)
     plt.figure(figsize=(8, 8))
     sns.set(font_scale=1.5)
     ax = plt.gca()
     sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     plt.savefig("figs/dw_twibot22.pdf", bbox_inches="tight")
-    plt.xlabel('横坐标', fontname=CHN_FONT, fontsize=18)
-    plt.ylabel('纵坐标', fontname=CHN_FONT, fontsize=18)
     for lbl in ax.get_xticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
     for lbl in ax.get_yticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
-    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    plt.xlabel('')
+    plt.ylabel('')
+    legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
     plt.show()
 
     print("Graph embedding via Node2Vec..............")
@@ -192,21 +196,25 @@ if __name__ == "__main__":
     z_data = np.vstack((z.T, labels_sub)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
     df_tsne['类别'] = df_tsne['类别'].astype(int)
+    # 将数值类别映射为中文标签
+    label_map = {0: "人类", 1: "社交机器人"}
+    df_tsne['类别'] = df_tsne['类别'].map(label_map)
     plt.figure(figsize=(8, 8))
     sns.set(font_scale=1.5)
     ax = plt.gca()
     sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     
     plt.savefig("figs/n2v_twibot22.pdf", bbox_inches="tight")
-    plt.xlabel('横坐标', fontname=CHN_FONT, fontsize=18)
-    plt.ylabel('纵坐标', fontname=CHN_FONT, fontsize=18)
     for lbl in ax.get_xticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
     for lbl in ax.get_yticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
-    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    plt.xlabel('')
+    plt.ylabel('')
+    legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
     plt.show()
 
     print("Graph embedding via LINE........")
@@ -229,21 +237,25 @@ if __name__ == "__main__":
     z_data = np.vstack((z.T, labels_sub)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
     df_tsne['类别'] = df_tsne['类别'].astype(int)
+    # 将数值类别映射为中文标签
+    label_map = {0: "人类", 1: "社交机器人"}
+    df_tsne['类别'] = df_tsne['类别'].map(label_map)
     plt.figure(figsize=(8, 8))
     sns.set(font_scale=1.5)
     ax = plt.gca()
     sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     
     plt.savefig("figs/line_twibot22.pdf", bbox_inches="tight")
-    plt.xlabel('横坐标', fontname=CHN_FONT, fontsize=18)
-    plt.ylabel('纵坐标', fontname=CHN_FONT, fontsize=18)
     for lbl in ax.get_xticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
     for lbl in ax.get_yticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
-    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    plt.xlabel('')
+    plt.ylabel('')
+    legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
     plt.show()
 
     print("Graph embedding via SDNE...........")
@@ -265,19 +277,23 @@ if __name__ == "__main__":
     z_data = np.vstack((z.T, labels_sub)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
     df_tsne['类别'] = df_tsne['类别'].astype(int)
+    # 将数值类别映射为中文标签
+    label_map = {0: "人类", 1: "社交机器人"}
+    df_tsne['类别'] = df_tsne['类别'].map(label_map)
     plt.figure(figsize=(8, 8))
     sns.set(font_scale=1.5)
     ax = plt.gca()
     sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     
     plt.savefig("figs/sdne_twibot22.pdf", bbox_inches="tight")
-    plt.xlabel('横坐标', fontname=CHN_FONT, fontsize=18)
-    plt.ylabel('纵坐标', fontname=CHN_FONT, fontsize=18)
     for lbl in ax.get_xticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
     for lbl in ax.get_yticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
-    ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    plt.xlabel('')
+    plt.ylabel('')
+    legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
     plt.show()
