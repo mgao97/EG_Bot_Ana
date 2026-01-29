@@ -148,7 +148,7 @@ def _pick_connected_union(G_eg, comm_a, comm_b, limit=30):
     return S
 
 # Build graph from TwiBot22 and run Louvain
-G_eg = _build_eg_from_csv('../dataset/TwiBot22/edge_index.csv')
+G_eg = _build_eg_from_csv('/NVMeDATA/gxj_data/hyperscan_cikm25/twibot22/edge_index.csv')
 comms = list(louvain_communities(G_eg))
 comms.sort(key=lambda c: len(c), reverse=True)
 comm_a = comms[0] if len(comms) > 0 else set()
@@ -156,33 +156,34 @@ comm_b = comms[1] if len(comms) > 1 else set()
 G = _pick_connected_union(G_eg, comm_a, comm_b, limit=30)
 
 # Load labels and color mapping: red=bot(1), green=human(0)
-labels = _load_labels_pt('/home/user/GSK/mgao/dataset/TwiBot22/label.pt')
+labels = _load_labels_pt('/NVMeDATA/gxj_data/hyperscan_cikm25/twibot22/label.pt')
 def _node_color(n):
     try:
         return 'red' if labels[int(n)] == 1 else 'green'
     except Exception:
         return 'green'
 
-# layout
-pos = nx.spring_layout(G, iterations=50)
+# layout - 减少迭代次数显著提升速度
+pos = nx.spring_layout(G, iterations=15, seed=42)  # 从50降到15，添加seed保证可复现
+
+# 预计算一次即可（不要在循环中重复计算！）
+node_colors = [_node_color(n) for n in G.nodes()]
+curves = curved_edges(G, pos)
+# lc = LineCollection(curves, color='#999999', alpha=0.4)
 
 # 创建子图
 fig, axes = plt.subplots(2, 3, figsize=(8, 6))
 
-# 遍历所有子图
+# 遍历所有子图 - 使用预计算的结果
 for i, ax in enumerate(axes.flatten()):
     # 绘制节点
-    node_colors = [_node_color(n) for n in G.nodes()]
     nx.draw_networkx_nodes(G, pos, ax=ax, node_size=200, node_color=node_colors, alpha=0.8)
 
     # 绘制标签
     nx.draw_networkx_labels(G, pos, ax=ax, font_size=8, font_family='Arial', font_color='black')
 
-    # Produce the curves
-    curves = curved_edges(G, pos)
+    # 直接添加预计算的连线集合
     lc = LineCollection(curves, color='#999999', alpha=0.4)
-
-    # 添加连线
     ax.add_collection(lc)
 
     # 设置坐标轴参数

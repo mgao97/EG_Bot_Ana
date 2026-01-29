@@ -1,6 +1,7 @@
 
 import csv
 import time
+import random
 
 import easygraph as eg
 import matplotlib.pyplot as plt
@@ -11,6 +12,7 @@ try:
     import torch
 except Exception:
     torch = None
+import os
 
 from easygraph.functions.community import greedy_modularity_communities
 from easygraph.functions.community import modularity
@@ -28,7 +30,7 @@ rcParams['font.family'] = 'sans-serif'
 rcParams['font.sans-serif'] = ['SimSun']
 rcParams['axes.unicode_minus'] = False
 from matplotlib import font_manager
-font_manager.addfont('/home/user/GSK/mgao/SimSun.ttf')
+font_manager.fontManager.addfont('/usr/share/fonts/sim/simsun.ttc')
 
 CHN_FONT = 'SimSun'
 ROMAN_FONT = 'Times New Roman'
@@ -62,6 +64,7 @@ def _emb_matrix(embeddings, nodes_order, dim_hint=None):
 
 
 def _build_eg_from_csv(path):
+    G = eg.Graph()
     with open(path, 'r') as f:
         first = f.readline().strip()
     toks = [t.strip().lower() for t in first.split(',')]
@@ -98,6 +101,36 @@ def _build_eg_from_csv(path):
             return G
         for a, b in zip(u, v):
             G.add_edge(int(a), int(b))
+    return G
+
+def _build_eg_from_pt(path):
+    obj = torch.load(path, map_location='cpu') if torch is not None else None
+    if obj is None:
+        return eg.Graph()
+    if torch.is_tensor(obj):
+        edge_index = obj
+    elif isinstance(obj, dict):
+        edge_index = obj.get('edge_index', None)
+        if edge_index is None:
+            for v in obj.values():
+                if torch.is_tensor(v) and v.ndim == 2:
+                    edge_index = v
+                    break
+    else:
+        return eg.Graph()
+    if edge_index.ndim != 2:
+        return eg.Graph()
+    if edge_index.shape[0] == 2:
+        u = edge_index[0].cpu().numpy().tolist()
+        v = edge_index[1].cpu().numpy().tolist()
+    elif edge_index.shape[1] == 2:
+        u = edge_index[:, 0].cpu().numpy().tolist()
+        v = edge_index[:, 1].cpu().numpy().tolist()
+    else:
+        return eg.Graph()
+    G = eg.Graph()
+    for a, b in zip(u, v):
+        G.add_edge(int(a), int(b))
     return G
 
 def _load_labels_for_graph(G, path):
@@ -148,10 +181,58 @@ def _load_labels_for_graph(G, path):
     except Exception:
         return np.zeros(len(G.nodes), dtype=int)
 
+def _load_labels_pt(path, n_nodes):
+    if torch is None or not os.path.exists(path):
+        return np.zeros(n_nodes, dtype=int)
+    obj = torch.load(path, map_location='cpu')
+    if torch.is_tensor(obj):
+        arr = obj.view(-1).cpu().numpy()
+    elif isinstance(obj, dict):
+        arr = None
+        for k in ('label', 'labels', 'y'):
+            v = obj.get(k, None)
+            if torch.is_tensor(v):
+                arr = v.view(-1).cpu().numpy()
+                break
+        if arr is None:
+            for v in obj.values():
+                if torch.is_tensor(v):
+                    arr = v.view(-1).cpu().numpy()
+                    break
+    else:
+        arr = None
+    if arr is None:
+        return np.zeros(n_nodes, dtype=int)
+    if len(arr) < n_nodes:
+        pad = np.zeros(n_nodes - len(arr), dtype=int)
+        arr = np.concatenate([arr, pad])
+    else:
+        arr = arr[:n_nodes]
+    return arr.astype(int)
+
 if __name__ == "__main__":
     device = torch.device('cuda:0' if (torch is not None and torch.cuda.is_available()) else 'cpu') if torch is not None else 'cpu'
-    g = _build_eg_from_csv('../dataset/TwiBot20/edge.csv')
-    labels = _load_labels_for_graph(g, '../dataset/TwiBot20/label.csv')
+    base = '/NVMeDATA/gxj_data/hyperscan_cikm25/twibot20'
+    edge_csv = os.path.join(base, 'edge.csv')
+    edge_idx_csv = os.path.join(base, 'edge_index.csv')
+    edge_pt = os.path.join(base, 'edge.pt')
+    edge_index_pt = os.path.join(base, 'edge_index.pt')
+    if os.path.exists(edge_csv):
+        g = _build_eg_from_csv(edge_csv)
+    elif os.path.exists(edge_idx_csv):
+        g = _build_eg_from_csv(edge_idx_csv)
+    elif os.path.exists(edge_pt):
+        g = _build_eg_from_pt(edge_pt)
+    elif os.path.exists(edge_index_pt):
+        g = _build_eg_from_pt(edge_index_pt)
+    else:
+        g = eg.Graph()
+    label_csv = os.path.join(base, 'label.csv')
+    label_pt = os.path.join(base, 'label.pt')
+    if os.path.exists(label_csv):
+        labels = _load_labels_for_graph(g, label_csv)
+    else:
+        labels = _load_labels_pt(label_pt, len(g.nodes))
     nodes_order = list(g.nodes)
     if torch is not None:
         torch.save(torch.as_tensor(labels), 'twibot20_labels.pt')
@@ -164,8 +245,12 @@ if __name__ == "__main__":
     print(dw_emb)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    z = tsne.fit_transform(dw_emb)
-    z_data = np.vstack((z.T, labels)).T
+    max_n = min(1000, len(dw_emb))
+    indices = random.sample(range(len(dw_emb)), max_n)
+    dw_emb_sub = dw_emb[indices]
+    labels_sub = labels[indices]
+    z = tsne.fit_transform(dw_emb_sub)
+    z_data = np.vstack((z.T, labels_sub)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
     df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
@@ -193,8 +278,12 @@ if __name__ == "__main__":
         torch.save(n2v_emb,'n2v_twibot20_emb.pt')
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    z = tsne.fit_transform(n2v_emb)
-    z_data = np.vstack((z.T, labels)).T
+    max_n = min(1000, len(n2v_emb))
+    indices = random.sample(range(len(n2v_emb)), max_n)
+    n2v_emb_sub = n2v_emb[indices]
+    labels_sub = labels[indices]
+    z = tsne.fit_transform(n2v_emb_sub)
+    z_data = np.vstack((z.T, labels_sub)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
     df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
@@ -225,8 +314,12 @@ if __name__ == "__main__":
         torch.save(l_emb,'line_twibot20_emb.pt')
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    z = tsne.fit_transform(l_emb)
-    z_data = np.vstack((z.T, labels)).T
+    max_n = min(1000, len(l_emb))
+    indices = random.sample(range(len(l_emb)), max_n)
+    l_emb_sub = l_emb[indices]
+    labels_sub = labels[indices]
+    z = tsne.fit_transform(l_emb_sub)
+    z_data = np.vstack((z.T, labels_sub)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
     df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
@@ -247,7 +340,8 @@ if __name__ == "__main__":
     plt.show()
 
     print("Graph embedding via SDNE...........")
-    model = eg.SDNE(g, node_size=len(g.nodes), nhid0=200, nhid1=100, dropout=0.25, alpha=3e-2, beta=5)
+    node_size_val = (max(g.nodes) + 1) if len(g.nodes) > 0 else 0
+    model = eg.SDNE(g, node_size=node_size_val, nhid0=200, nhid1=100, dropout=0.25, alpha=3e-2, beta=5)
     sdne_emb = model.train(model)
 
     sd_emb = _emb_matrix(sdne_emb, nodes_order, dim_hint=100)
@@ -256,8 +350,12 @@ if __name__ == "__main__":
     print(sd_emb)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    z = tsne.fit_transform(sd_emb)
-    z_data = np.vstack((z.T, labels)).T
+    max_n = min(1000, len(sd_emb))
+    indices = random.sample(range(len(sd_emb)), max_n)
+    sd_emb_sub = sd_emb[indices]
+    labels_sub = labels[indices]
+    z = tsne.fit_transform(sd_emb_sub)
+    z_data = np.vstack((z.T, labels_sub)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
     df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))

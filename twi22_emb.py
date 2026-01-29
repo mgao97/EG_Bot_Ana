@@ -1,6 +1,8 @@
 
 import csv
 import time
+import random
+import os
 
 import easygraph as eg
 import matplotlib.pyplot as plt
@@ -28,9 +30,67 @@ rcParams['font.family'] = 'sans-serif'
 rcParams['font.sans-serif'] = ['SimSun']
 rcParams['axes.unicode_minus'] = False
 from matplotlib import font_manager
-font_manager.addfont('/home/user/GSK/mgao/SimSun.ttf')
+font_manager.fontManager.addfont('/usr/share/fonts/sim/simsun.ttc')
 CHN_FONT = 'SimSun'
 ROMAN_FONT = 'Times New Roman'
+
+
+def _emb_matrix(embeddings, nodes_order, dim_hint=None):
+    rows = []
+    if isinstance(embeddings, dict):
+        for n in nodes_order:
+            v = embeddings.get(n)
+            if v is None:
+                v = embeddings.get(str(n))
+            if v is None:
+                if dim_hint is None:
+                    dim_hint = len(next(iter(embeddings.values())))
+                v = np.zeros(dim_hint)
+            rows.append(np.asarray(v))
+        return np.vstack(rows)
+    try:
+        if dim_hint is None and len(embeddings) > 0:
+            try:
+                dim_hint = len(embeddings[0])
+            except Exception:
+                dim_hint = None
+        if set(nodes_order) == set(range(len(embeddings))):
+            for n in nodes_order:
+                rows.append(np.asarray(embeddings[n]))
+            return np.vstack(rows)
+        return np.asarray(list(embeddings))
+    except Exception:
+        return np.asarray(list(embeddings))
+
+
+def _load_labels_pt(path, n_nodes):
+    if torch is None or not os.path.exists(path):
+        return np.zeros(n_nodes, dtype=int)
+    obj = torch.load(path, map_location='cpu')
+    if torch.is_tensor(obj):
+        arr = obj.view(-1).cpu().numpy()
+    elif isinstance(obj, dict):
+        arr = None
+        for k in ('label', 'labels', 'y'):
+            v = obj.get(k, None)
+            if torch.is_tensor(v):
+                arr = v.view(-1).cpu().numpy()
+                break
+        if arr is None:
+            for v in obj.values():
+                if torch.is_tensor(v):
+                    arr = v.view(-1).cpu().numpy()
+                    break
+    else:
+        arr = None
+    if arr is None:
+        return np.zeros(n_nodes, dtype=int)
+    if len(arr) < n_nodes:
+        pad = np.zeros(n_nodes - len(arr), dtype=int)
+        arr = np.concatenate([arr, pad])
+    else:
+        arr = arr[:n_nodes]
+    return arr.astype(int)
 
 
 def _build_eg_from_csv(path):
@@ -74,28 +134,29 @@ def _build_eg_from_csv(path):
     return G
 
 if __name__ == "__main__":
-    device = torch.device('cuda:0' if (torch is not None and torch.cuda.is_available()) else 'cpu') if torch is not None else 'cpu'
-    g = _build_eg_from_csv('../dataset/TwiBot22/edge_index.csv')
-    labels = np.zeros(len(g.nodes), dtype=int)
+    # device = torch.device('cuda:0' if (torch is not None and torch.cuda.is_available()) else 'cpu') if torch is not None else 'cpu'
+    device = 'cpu'
+    g = _build_eg_from_csv('/NVMeDATA/gxj_data/hyperscan_cikm25/twibot22/edge_index.csv')
+    label_pt = '/NVMeDATA/gxj_data/hyperscan_cikm25/twibot22/label.pt'
+    labels = _load_labels_pt(label_pt, len(g.nodes))
+    nodes_order = list(g.nodes)
     if torch is not None:
         torch.save(torch.as_tensor(labels), 'twibot22_labels.pt')
 
     print("Graph embedding via DeepWalk...........")
     deepwalk_emb, _ = deepwalk(g, dimensions=128, walk_length=80, num_walks=10)
-    # print(deepwalk_emb, len(deepwalk_emb))
-
-    dw_emb = []
-    for i in range(0, len(deepwalk_emb)):
-        dw_emb.append(list(deepwalk_emb[i]))
-    #   print(len(dw_emb))
+    dw_emb = _emb_matrix(deepwalk_emb, nodes_order, dim_hint=128)
     if torch is not None:
         torch.save(dw_emb,'dw_twibot22_emb.pt')
-    dw_emb = np.array(dw_emb)
     print(dw_emb)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    z = tsne.fit_transform(dw_emb)
-    z_data = np.vstack((z.T, labels)).T
+    max_n = min(1000, len(dw_emb))
+    indices = random.sample(range(len(dw_emb)), max_n)
+    dw_emb_sub = dw_emb[indices]
+    labels_sub = labels[indices]
+    z = tsne.fit_transform(dw_emb_sub)
+    z_data = np.vstack((z.T, labels_sub)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
     df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
@@ -118,20 +179,17 @@ if __name__ == "__main__":
     node2vec_emb, _ = node2vec(
         g, dimensions=128, walk_length=80, num_walks=10, p=4, q=0.25
     )
-    # print(node2vec_emb, len(node2vec_emb))
-
-    n2v_emb = []
-    for i in range(0, len(node2vec_emb)):
-        n2v_emb.append(list(node2vec_emb[i]))
-    # print(len(n2v_emb))
+    n2v_emb = _emb_matrix(node2vec_emb, nodes_order, dim_hint=128)
     if torch is not None:
         torch.save(n2v_emb,'n2v_twibot22_emb.pt')
-    n2v_emb = np.array(n2v_emb)
-    # print(n2v_emb)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    z = tsne.fit_transform(n2v_emb)
-    z_data = np.vstack((z.T, labels)).T
+    max_n = min(1000, len(n2v_emb))
+    indices = random.sample(range(len(n2v_emb)), max_n)
+    n2v_emb_sub = n2v_emb[indices]
+    labels_sub = labels[indices]
+    z = tsne.fit_transform(n2v_emb_sub)
+    z_data = np.vstack((z.T, labels_sub)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
     df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
@@ -158,18 +216,17 @@ if __name__ == "__main__":
     model.train()
     line_emb = model(g, return_dict=True)
 
-    l_emb = []
-    for i in range(0, len(line_emb)):
-        l_emb.append(list(line_emb[i]))
-    #   print(len(l_emb))
+    l_emb = _emb_matrix(line_emb, nodes_order, dim_hint=128)
     if torch is not None:
         torch.save(l_emb,'line_twibot22_emb.pt')
-    l_emb = np.array(l_emb)
-    # print(l_emb)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    z = tsne.fit_transform(l_emb)
-    z_data = np.vstack((z.T, labels)).T
+    max_n = min(1000, len(l_emb))
+    indices = random.sample(range(len(l_emb)), max_n)
+    l_emb_sub = l_emb[indices]
+    labels_sub = labels[indices]
+    z = tsne.fit_transform(l_emb_sub)
+    z_data = np.vstack((z.T, labels_sub)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
     df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))
@@ -190,21 +247,22 @@ if __name__ == "__main__":
     plt.show()
 
     print("Graph embedding via SDNE...........")
-    model = eg.SDNE(g, node_size=len(g.nodes), nhid0=200, nhid1=100, dropout=0.25, alpha=3e-2, beta=5)
+    node_size_val = (max(g.nodes) + 1) if len(g.nodes) > 0 else 0
+    model = eg.SDNE(g, node_size=node_size_val, nhid0=200, nhid1=100, dropout=0.25, alpha=3e-2, beta=5)
     sdne_emb = model.train(model)
 
-    sd_emb = []
-    for i in range(0, len(sdne_emb)):
-        sd_emb.append(list(sdne_emb[i]))
-    #   print(len(sd_emb))
+    sd_emb = _emb_matrix(sdne_emb, nodes_order, dim_hint=100)
     if torch is not None:
         torch.save(sd_emb,'sd_twibot22_emb.pt')
-    sd_emb = np.array(sd_emb)
     print(sd_emb)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    z = tsne.fit_transform(sd_emb)
-    z_data = np.vstack((z.T, labels)).T
+    max_n = min(1000, len(sd_emb))
+    indices = random.sample(range(len(sd_emb)), max_n)
+    sd_emb_sub = sd_emb[indices]
+    labels_sub = labels[indices]
+    z = tsne.fit_transform(sd_emb_sub)
+    z_data = np.vstack((z.T, labels_sub)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
     df_tsne['类别'] = df_tsne['类别'].astype(int)
     plt.figure(figsize=(8, 8))

@@ -1,0 +1,2 @@
+ Please install Pytorch before use graph-related datasets and hypergraph-related datasets.
+{'alpha': 1.590823651848936, 'r2': 0.9169217158712032, 'n_nodes': 693761, 'n_edges': 3332811}

@@ -382,12 +382,14 @@ def ensure_csv_in_dir(dir_path):
         save_edges_csv(edge_index_pt, edge_csv, relation=relation, id_prefix=id_prefix)
 
 def main():
-    for d in ['../dataset/TwiBot22', '../dataset/TwiBot20', '../dataset/MGTAB']:
+    for d in ['/NVMeDATA/gxj_data/hyperscan_cikm25/twibot22',
+              '/NVMeDATA/gxj_data/hyperscan_cikm25/twibot20',
+              '/NVMeDATA/gxj_data/hyperscan_cikm25/mgtab']:
         ensure_csv_in_dir(d)
     datasets = [
-        ('TwiBot-22', '../dataset/TwiBot22/edge_index.csv'),
-        ('TwiBot-20', '../dataset/TwiBot20/edge_index.csv'),
-        ('MGTAB', '../dataset/MGTAB/edge_index.csv'),
+        ('TwiBot-22', '/NVMeDATA/gxj_data/hyperscan_cikm25/twibot22/edge_index.csv'),
+        ('TwiBot-20', '/NVMeDATA/gxj_data/hyperscan_cikm25/twibot20/edge_index.csv'),
+        ('MGTAB', '/NVMeDATA/gxj_data/hyperscan_cikm25/mgtab/edge_index.csv'),
     ]
     # for name, path in datasets:
     #     run_dataset(name, path)

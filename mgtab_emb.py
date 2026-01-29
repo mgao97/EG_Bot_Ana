@@ -1,6 +1,7 @@
 
 import csv
 import time
+import random
 
 import easygraph as eg
 import matplotlib.pyplot as plt
@@ -26,7 +27,7 @@ rcParams['font.family'] = 'sans-serif'
 rcParams['font.sans-serif'] = ['SimSun']
 rcParams['axes.unicode_minus'] = False
 from matplotlib import font_manager
-font_manager.addfont('/home/user/GSK/mgao/SimSun.ttf')
+font_manager.fontManager.addfont('/usr/share/fonts/sim/simsun.ttc')
 CHN_FONT = 'SimSun'
 ROMAN_FONT = 'Times New Roman'
 
@@ -119,8 +120,8 @@ def _build_eg_from_csv(path):
 
 if __name__ == "__main__":
     device = torch.device('cuda:0' if (torch is not None and torch.cuda.is_available()) else 'cpu') if torch is not None else 'cpu'
-    g = _build_eg_from_csv('../dataset/MGTAB/edge_index.csv')
-    labels_raw = _load_labels_pt('/home/user/GSK/mgao/dataset/TwiBot22/label.pt')
+    g = _build_eg_from_csv('/NVMeDATA/gxj_data/hyperscan_cikm25/mgtab/edge_index.csv')
+    labels_raw = _load_labels_pt('/NVMeDATA/gxj_data/hyperscan_cikm25/mgtab/label.pt')
     nodes_order = list(g.nodes)
 
     print("Graph embedding via DeepWalk...........")
@@ -131,25 +132,33 @@ if __name__ == "__main__":
     print(dw_emb)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    z = tsne.fit_transform(dw_emb)
-    labels_dw = _align_labels(labels_raw, len(dw_emb))
+    max_n = min(1000, len(dw_emb))
+    indices = random.sample(range(len(dw_emb)), max_n)
+    dw_emb_sub = dw_emb[indices]
+    labels_dw = _align_labels(labels_raw, len(dw_emb))[indices]
+    z = tsne.fit_transform(dw_emb_sub)
     z_data = np.vstack((z.T, labels_dw)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
     df_tsne['类别'] = df_tsne['类别'].astype(int)
+    # 将数值类别映射为中文标签
+    label_map = {0: "人类", 1: "社交机器人"}
+    df_tsne['类别'] = df_tsne['类别'].map(label_map)
     plt.figure(figsize=(8, 8))
     sns.set(font_scale=1.5)
     ax = plt.gca()
     sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
-    plt.savefig("figs/dw_mgtab.pdf", bbox_inches="tight")
-    plt.xlabel('', fontname=CHN_FONT, fontsize=18)
-    plt.ylabel('', fontname=CHN_FONT, fontsize=18)
+    # 设置横纵轴刻度为 Times New Roman
     for lbl in ax.get_xticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
     for lbl in ax.get_yticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
+    # 设置 legend 为宋体
     ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    plt.xlabel('x', fontname=CHN_FONT, fontsize=18)
+    plt.ylabel('y', fontname=CHN_FONT, fontsize=18)
+    plt.savefig("figs/dw_mgtab.pdf", bbox_inches="tight")
     plt.show()
 
     print("Graph embedding via Node2Vec..............")
@@ -161,26 +170,33 @@ if __name__ == "__main__":
         torch.save(n2v_emb,'n2v_mgtab_emb.pt')
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    z = tsne.fit_transform(n2v_emb)
-    labels_n2v = _align_labels(labels_raw, len(n2v_emb))
+    max_n = min(1000, len(n2v_emb))
+    indices = random.sample(range(len(n2v_emb)), max_n)
+    n2v_emb_sub = n2v_emb[indices]
+    labels_n2v = _align_labels(labels_raw, len(n2v_emb))[indices]
+    z = tsne.fit_transform(n2v_emb_sub)
     z_data = np.vstack((z.T, labels_n2v)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
     df_tsne['类别'] = df_tsne['类别'].astype(int)
+    # 将数值类别映射为中文标签
+    label_map = {0: "人类", 1: "社交机器人"}
+    df_tsne['类别'] = df_tsne['类别'].map(label_map)
     plt.figure(figsize=(8, 8))
     sns.set(font_scale=1.5)
     ax = plt.gca()
     sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
-    
-    plt.savefig("figs/n2v_mgtab.pdf", bbox_inches="tight")
-    plt.xlabel('', fontname=CHN_FONT, fontsize=18)
-    plt.ylabel('', fontname=CHN_FONT, fontsize=18)
+    # 设置横纵轴刻度为 Times New Roman
     for lbl in ax.get_xticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
     for lbl in ax.get_yticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
+    # 设置 legend 为宋体
     ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    plt.xlabel('x', fontname=CHN_FONT, fontsize=18)
+    plt.ylabel('y', fontname=CHN_FONT, fontsize=18)
+    plt.savefig("figs/n2v_mgtab.pdf", bbox_inches="tight")
     plt.show()
 
     print("Graph embedding via LINE........")
@@ -195,26 +211,33 @@ if __name__ == "__main__":
         torch.save(l_emb,'line_mgtab_emb.pt')
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    z = tsne.fit_transform(l_emb)
-    labels_line = _align_labels(labels_raw, len(l_emb))
+    max_n = min(1000, len(l_emb))
+    indices = random.sample(range(len(l_emb)), max_n)
+    l_emb_sub = l_emb[indices]
+    labels_line = _align_labels(labels_raw, len(l_emb))[indices]
+    z = tsne.fit_transform(l_emb_sub)
     z_data = np.vstack((z.T, labels_line)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
     df_tsne['类别'] = df_tsne['类别'].astype(int)
+    # 将数值类别映射为中文标签
+    label_map = {0: "人类", 1: "社交机器人"}
+    df_tsne['类别'] = df_tsne['类别'].map(label_map)
     plt.figure(figsize=(8, 8))
     sns.set(font_scale=1.5)
     ax = plt.gca()
     sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
-    
-    plt.savefig("figs/line_mgtab.pdf", bbox_inches="tight")
-    plt.xlabel('', fontname=CHN_FONT, fontsize=18)
-    plt.ylabel('', fontname=CHN_FONT, fontsize=18)
+    # 设置横纵轴刻度为 Times New Roman
     for lbl in ax.get_xticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
     for lbl in ax.get_yticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
+    # 设置 legend 为宋体
     ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    plt.xlabel('x', fontname=CHN_FONT, fontsize=18)
+    plt.ylabel('y', fontname=CHN_FONT, fontsize=18)
+    plt.savefig("figs/line_mgtab.pdf", bbox_inches="tight")
     plt.show()
 
     if torch is not None:
@@ -226,23 +249,31 @@ if __name__ == "__main__":
         torch.save(sd_emb,'sd_mgtab_emb.pt')
         print(sd_emb)
         tsne = TSNE(n_components=2, verbose=1, random_state=0)
-        z = tsne.fit_transform(sd_emb)
-        labels_sdne = _align_labels(labels_raw, len(sd_emb))
+        max_n = min(1000, len(sd_emb))
+        indices = random.sample(range(len(sd_emb)), max_n)
+        sd_emb_sub = sd_emb[indices]
+        labels_sdne = _align_labels(labels_raw, len(sd_emb))[indices]
+        z = tsne.fit_transform(sd_emb_sub)
         z_data = np.vstack((z.T, labels_sdne)).T
         df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
         df_tsne['类别'] = df_tsne['类别'].astype(int)
+        # 将数值类别映射为中文标签
+        label_map = {0: "人类", 1: "社交机器人"}
+        df_tsne['类别'] = df_tsne['类别'].map(label_map)
         plt.figure(figsize=(8, 8))
         sns.set(font_scale=1.5)
         ax = plt.gca()
         sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
-        plt.savefig("figs/sdne_mgtab.pdf", bbox_inches="tight")
-        plt.xlabel('', fontname=CHN_FONT, fontsize=18)
-        plt.ylabel('', fontname=CHN_FONT, fontsize=18)
+        # 设置横纵轴刻度为 Times New Roman
         for lbl in ax.get_xticklabels():
             lbl.set_fontname(ROMAN_FONT)
             lbl.set_fontsize(18)
         for lbl in ax.get_yticklabels():
             lbl.set_fontname(ROMAN_FONT)
             lbl.set_fontsize(18)
+        # 设置 legend 为宋体
         ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+        plt.xlabel('x', fontname=CHN_FONT, fontsize=18)
+        plt.ylabel('y', fontname=CHN_FONT, fontsize=18)
+        plt.savefig("figs/sdne_mgtab.pdf", bbox_inches="tight")
         plt.show()
