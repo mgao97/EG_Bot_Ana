@@ -30,7 +30,10 @@ rcParams['font.family'] = 'sans-serif'
 rcParams['font.sans-serif'] = ['SimSun']
 rcParams['axes.unicode_minus'] = False
 from matplotlib import font_manager
-font_manager.fontManager.addfont('/usr/share/fonts/sim/simsun.ttc')
+times_path = '/usr/share/fonts/Times/times.ttf'     # 新罗马字体 
+simsun_path = '/usr/share/fonts/sim/simsun.ttc'   # 宋体 
+font_manager.fontManager.addfont(simsun_path)
+font_manager.fontManager.addfont(times_path)
 
 CHN_FONT = 'SimSun'
 ROMAN_FONT = 'Times New Roman'
@@ -439,7 +442,6 @@ if __name__ == "__main__":
     sns.set(font_scale=1.5)
     ax = plt.gca()
     sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
-    plt.savefig("figs/dw_twibot20.pdf", bbox_inches="tight")
     for lbl in ax.get_xticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
@@ -450,6 +452,7 @@ if __name__ == "__main__":
     plt.ylabel('')
     legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
+    plt.savefig("figs/dw_twibot20.pdf", bbox_inches="tight")
     plt.show()
 
     print("Graph embedding via Node2Vec..............")
@@ -484,7 +487,6 @@ if __name__ == "__main__":
     ax = plt.gca()
     sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     
-    plt.savefig("figs/n2v_twibot20.pdf", bbox_inches="tight")
     for lbl in ax.get_xticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
@@ -495,6 +497,7 @@ if __name__ == "__main__":
     plt.ylabel('')
     legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
+    plt.savefig("figs/n2v_twibot20.pdf", bbox_inches="tight")
     plt.show()
 
     print("Graph embedding via LINE........")
@@ -530,7 +533,6 @@ if __name__ == "__main__":
     ax = plt.gca()
     sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     
-    plt.savefig("figs/line_twibot20.pdf", bbox_inches="tight")
     for lbl in ax.get_xticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
@@ -541,6 +543,7 @@ if __name__ == "__main__":
     plt.ylabel('')
     legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
+    plt.savefig("figs/line_twibot20.pdf", bbox_inches="tight")
     plt.show()
 
     print("Graph embedding via SDNE...........")
@@ -550,7 +553,8 @@ if __name__ == "__main__":
         sd_emb = torch.load(sd_path, map_location='cpu')
     else:
         # Use our custom SparseSDNE to avoid OOM
-        node_size_val = (max(g.nodes) + 1) if len(g.nodes) > 0 else 0
+        # node_size_val = (max(g.nodes) + 1) if len(g.nodes) > 0 else 0
+        node_size_val = 229580
         # Use smaller hidden dims for memory efficiency if needed, but 200/100 should be fine with sparse
         model = SparseSDNE(g, node_size=node_size_val, nhid0=200, nhid1=100, dropout=0.25, alpha=3e-2, beta=5)
         
@@ -581,7 +585,6 @@ if __name__ == "__main__":
     ax = plt.gca()
     sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     
-    plt.savefig("figs/sdne_twibot20.pdf", bbox_inches="tight")
     for lbl in ax.get_xticklabels():
         lbl.set_fontname(ROMAN_FONT)
         lbl.set_fontsize(18)
@@ -592,4 +595,5 @@ if __name__ == "__main__":
     plt.ylabel('')
     legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
+    plt.savefig("figs/sdne_twibot20.pdf", bbox_inches="tight")
     plt.show()
