@@ -679,12 +679,12 @@ def run_dataset_eg_only(name, path):
     
     if G_eg is not None:
         # GraphC 支持的基础算法
-        # tasks = [
-        #     ('cc', 'eg_graphc', 'eg.closeness_centrality(G_eg)'),
-        #     ('bc', 'eg_graphc', 'eg.betweenness_centrality(G_eg)'),
-        #     ('pr', 'eg_graphc', 'eg.pagerank(G_eg)'),
-        # ]
-        tasks = []
+        tasks = [
+            ('cc', 'eg_graphc', 'eg.closeness_centrality(G_eg)'),
+            ('bc', 'eg_graphc', 'eg.betweenness_centrality(G_eg)'),
+            ('pr', 'eg_graphc', 'eg.pagerank(G_eg)'),
+        ]
+        # tasks = []
         
         # 条件性添加其他支持的方法
         if sample:
