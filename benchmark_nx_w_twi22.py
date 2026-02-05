@@ -680,8 +680,8 @@ def run_dataset_eg_only(name, path):
     if G_eg is not None:
         # GraphC 支持的基础算法
         tasks = [
-            ('cc', 'eg_graphc', 'eg.closeness_centrality(G_eg)'),
-            ('bc', 'eg_graphc', 'eg.betweenness_centrality(G_eg)'),
+            # ('cc', 'eg_graphc', 'eg.closeness_centrality(G_eg)'),
+            # ('bc', 'eg_graphc', 'eg.betweenness_centrality(G_eg)'),
             ('pr', 'eg_graphc', 'eg.pagerank(G_eg)'),
         ]
         # tasks = []
@@ -703,6 +703,61 @@ def run_dataset_eg_only(name, path):
             print(f"Error running {stmt}: {e}")
         task_progress()
 
+def run_dataset_nx_only(name, path):
+    """只运行 NetworkX 相关的算法测试"""
+    print(f'===== Dataset: {name} (NetworkX Only) =====')
+    if not os.path.exists(path):
+        print(f'WARNING: missing path {path}, skip')
+        return
+
+    # 1. 加载数据并构建图对象
+    edge_index = load_edges(path)
+    G_nx = build_nx(edge_index)
+
+    # 2. 准备采样节点
+    nodes = list(G_nx.nodes())
+    sample = sample_nodes(nodes, 1000, 2026)
+
+    # 3. 准备执行上下文
+    g_context = {
+        'G_nx': G_nx,
+        'sample': sample,
+        'n_workers': os.cpu_count(),
+        'algo_cc_nx': algo_cc_nx,
+        'algo_cc_nx_mp': algo_cc_nx_mp,
+        'algo_bc_nx': algo_bc_nx,
+        'algo_bc_nx_mp': algo_bc_nx_mp,
+        'algo_pr_nx': algo_pr_nx,
+        'algo_cc_nx_all': algo_cc_nx_all,
+        'algo_all_pairs_shortest_paths_nx': algo_all_pairs_shortest_paths_nx,
+        'algo_kcore_nx': algo_kcore_nx,
+        'algo_hierarchy_nx': algo_hierarchy_nx,
+    }
+
+    # 4. 定义 NetworkX 任务列表
+    tasks = [
+        ('cc', 'nx', 'algo_cc_nx(G_nx, sample)'),
+        # ('cc', 'nx_mp', 'algo_cc_nx_mp(G_nx, sample)'),
+        # ('cc_full', 'nx', 'algo_cc_nx_all(G_nx)'),
+        # ('all_pairs_sp', 'nx', 'algo_all_pairs_shortest_paths_nx(G_nx)'),
+        # ('bc', 'nx', 'algo_bc_nx(G_nx, sample)'),
+        # ('bc', 'nx_mp', 'algo_bc_nx_mp(G_nx, sample)'),
+        # ('pr', 'nx', 'algo_pr_nx(G_nx)'),
+        # ('kcore', 'nx', 'algo_kcore_nx(G_nx)'),
+        # ('hierarchy', 'nx', 'algo_hierarchy_nx(G_nx)'),
+    ]
+
+    task_progress = _make_progress(f'[{name}] Running NetworkX tasks', len(tasks))
+
+    # 5. 循环执行 Benchmark
+    for algo, lib, stmt in tasks:
+        try:
+            times = benchmark_runs(stmt, g_context, runs=5)
+            save_benchmark_results(name, algo, lib, times)
+        except Exception as e:
+            print(f"Error running {stmt}: {e}")
+        task_progress()
+
 def main():
     # 设定数据集路径
     dataset_name = 'TwiBot22'
@@ -711,8 +766,8 @@ def main():
     # 确保 CSV 存在 (如果原始是 .pt)
     ensure_csv_in_dir('../dataset/TwiBot22')
     
-    # 仅运行 EasyGraph 测试
-    run_dataset_eg_only(dataset_name, dataset_path)
+    # 仅运行 NetworkX 测试
+    run_dataset_nx_only(dataset_name, dataset_path)
 
 if __name__ == '__main__':
     main()
