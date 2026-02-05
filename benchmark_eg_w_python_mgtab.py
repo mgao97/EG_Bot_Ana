@@ -357,6 +357,18 @@ def algo_hierarchy_ig(G):
     G.assortativity_degree()
     return 0
 
+def algo_cc_nx_all(G):
+    """Compute closeness centrality for all nodes using NetworkX."""
+    # returns dict but we ignore the result for benchmarking
+    nx.closeness_centrality(G)
+    return 0
+
+def algo_all_pairs_shortest_paths_nx(G):
+    """Compute all-pairs shortest path lengths using NetworkX."""
+    # returns dict-of-dict: {source: {target: distance}}
+    dict(nx.all_pairs_shortest_path_length(G))
+    return 0
+
 def run_dataset(name, path):
     print(f'===== Dataset: {name} =====')
     if not os.path.exists(path):
@@ -572,6 +584,8 @@ def run_dataset_nx_ig_only(name, path):
         'algo_bc_ig': algo_bc_ig,
         'algo_pr_nx': algo_pr_nx,
         'algo_pr_ig': algo_pr_ig,
+        'algo_cc_nx_all': algo_cc_nx_all,
+        'algo_all_pairs_shortest_paths_nx': algo_all_pairs_shortest_paths_nx,
         'algo_kcore_nx': algo_kcore_nx,
         'algo_kcore_ig': algo_kcore_ig,
         'algo_hierarchy_nx': algo_hierarchy_nx,
@@ -581,6 +595,8 @@ def run_dataset_nx_ig_only(name, path):
     tasks = [
         ('cc', 'nx', 'algo_cc_nx(G_nx, sample)'),
         ('cc', 'nx_mp', 'algo_cc_nx_mp(G_nx, sample)'),
+        ('cc_full', 'nx', 'algo_cc_nx_all(G_nx)'),
+        ('all_pairs_sp', 'nx', 'algo_all_pairs_shortest_paths_nx(G_nx)'),
     ]
     if ig is not None:
         tasks.append(('cc', 'ig', 'algo_cc_ig(G_ig, sample_idx)'))
@@ -618,13 +634,106 @@ def run_dataset_nx_ig_only(name, path):
         save_benchmark_results(name, algo, lib, times)
         task_progress()
 
+def build_eg(edge_index):
+    def _to_list(x):
+        if torch is not None and isinstance(x, torch.Tensor):
+            return x.cpu().numpy().tolist()
+        return np.asarray(x).tolist()
+    u = _to_list(edge_index[0])
+    v = _to_list(edge_index[1])
+    G = eg.Graph()
+    G.add_edges_from(zip(u, v))
+    return G
+
+def run_dataset_eg_only(name, path):
+    """只运行 EasyGraph 相关的算法测试"""
+    print(f'===== Dataset: {name} (EasyGraph Only) =====')
+    if not os.path.exists(path):
+        print(f'WARNING: missing path {path}, skip')
+        return
+
+    # 1. 加载数据并构建 EasyGraph 图对象
+    edge_index = load_edges(path)
+    G_eg = build_eg(edge_index)
+    
+    # 构建 GraphC 对象以测试高性能 C++ 实现 (如果环境支持)
+    dir_path = os.path.dirname(path)
+    edgelist_path = os.path.join(dir_path, 'edge_index.edgelist')
+    save_edges_edgelist(edge_index, edgelist_path)
+    
+    gC = None
+    try:
+        gC = eg.GraphC()
+        gC.add_edges_from_file(edgelist_path, weighted=False, is_transform=True)
+    except Exception as e:
+        print(f"GraphC not available: {e}")
+
+    # 2. 准备采样节点
+    eg_nodes = list(G_eg.nodes)
+    sample_size = 1000
+    sample = []
+    if len(eg_nodes) > 0:
+        # 使用 numpy 采样
+        rng = np.random.default_rng(2026)
+        actual_k = min(sample_size, len(eg_nodes))
+        sample = rng.choice(eg_nodes, size=actual_k, replace=False).tolist()
+
+    # 3. 准备执行上下文
+    g_context = {
+        'eg': eg,
+        'G_eg': G_eg,
+        'gC': gC,
+        'sample': sample,
+        'n_workers': os.cpu_count(),
+    }
+
+    # 4. 定义 EasyGraph 任务列表
+    # 包含普通调用、多线程(n_workers)调用以及 GraphC 优化调用
+    tasks = [
+        # 基础算法 (Python 实现)
+        ('cc', 'eg', 'eg.closeness_centrality(G_eg)'),
+        ('bc', 'eg', 'eg.betweenness_centrality(G_eg)'),
+        ('pr', 'eg', 'eg.pagerank(G_eg)'),
+        ('kcore', 'eg', 'eg.core_number(G_eg)'),
+        ('hierarchy', 'eg', 'eg.degree_assortativity_coefficient(G_eg)'),
+        
+        # 多线程版本 (EasyGraph 的特色)
+        ('cc_mp', 'eg_workers', 'eg.closeness_centrality(G_eg, n_workers=n_workers)'),
+        ('bc_mp', 'eg_workers', 'eg.betweenness_centrality(G_eg, n_workers=n_workers)'),
+        ('clustering_mp', 'eg_workers', 'eg.clustering(G_eg, n_workers=n_workers)'),
+        ('hierarchy_mp', 'eg_workers', 'eg.hierarchy(G_eg, n_workers=n_workers)'),
+    ]
+
+    # 如果 GraphC 构建成功，增加 C 扩展测试
+    if gC is not None:
+        tasks += [
+            ('kcore', 'eg_graphc', 'eg.k_core(gC)'),
+            ('bc', 'eg_graphc', 'eg.betweenness_centrality(gC)'),
+            ('cc', 'eg_graphc', 'eg.closeness_centrality(gC)'),
+            ('dijkstra', 'eg_graphc', 'eg.multi_source_dijkstra(gC, sources=sample)'),
+        ]
+
+    task_progress = _make_progress(f'[{name}] Running EasyGraph tasks', len(tasks))
+    
+    # 5. 循环执行 Benchmark
+    for algo, lib, stmt in tasks:
+        try:
+            times = benchmark_runs(stmt, g_context, runs=5)
+            save_benchmark_results(name, algo, lib, times)
+        except Exception as e:
+            print(f"Error running {stmt}: {e}")
+        task_progress()
+
 def main():
-    # Only ensure CSV exists for MGTAB
+    # 设定数据集路径
+    dataset_name = 'MGTAB'
+    dataset_path = '../dataset/MGTAB/edge_index.csv'
+    
+    # 确保 CSV 存在 (如果原始是 .pt)
     ensure_csv_in_dir('../dataset/MGTAB')
-    # Run only MGTAB dataset with NX and igraph
-    dataset = ('MGTAB', '../dataset/MGTAB/edge_index.csv')
-    name, path = dataset
-    run_dataset_nx_ig_only(name, path)
+    
+    # 仅运行 EasyGraph 测试
+    run_dataset_eg_only(dataset_name, dataset_path)
 
 if __name__ == '__main__':
     main()

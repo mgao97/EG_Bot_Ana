@@ -357,6 +357,18 @@ def algo_hierarchy_ig(G):
     G.assortativity_degree()
     return 0
 
+def algo_cc_nx_all(G):
+    """Compute closeness centrality for all nodes using NetworkX."""
+    # returns dict but we ignore the result for benchmarking
+    nx.closeness_centrality(G)
+    return 0
+
+def algo_all_pairs_shortest_paths_nx(G):
+    """Compute all-pairs shortest path lengths using NetworkX."""
+    # returns dict-of-dict: {source: {target: distance}}
+    dict(nx.all_pairs_shortest_path_length(G))
+    return 0
+
 def run_dataset(name, path):
     print(f'===== Dataset: {name} =====')
     if not os.path.exists(path):
@@ -572,6 +584,8 @@ def run_dataset_nx_ig_only(name, path):
         'algo_bc_ig': algo_bc_ig,
         'algo_pr_nx': algo_pr_nx,
         'algo_pr_ig': algo_pr_ig,
+        'algo_cc_nx_all': algo_cc_nx_all,
+        'algo_all_pairs_shortest_paths_nx': algo_all_pairs_shortest_paths_nx,
         'algo_kcore_nx': algo_kcore_nx,
         'algo_kcore_ig': algo_kcore_ig,
         'algo_hierarchy_nx': algo_hierarchy_nx,
@@ -581,6 +595,8 @@ def run_dataset_nx_ig_only(name, path):
     tasks = [
         ('cc', 'nx', 'algo_cc_nx(G_nx, sample)'),
         ('cc', 'nx_mp', 'algo_cc_nx_mp(G_nx, sample)'),
+        ('cc_full', 'nx', 'algo_cc_nx_all(G_nx)'),
+        ('all_pairs_sp', 'nx', 'algo_all_pairs_shortest_paths_nx(G_nx)'),
     ]
     if ig is not None:
         tasks.append(('cc', 'ig', 'algo_cc_ig(G_ig, sample_idx)'))
@@ -618,13 +634,86 @@ def run_dataset_nx_ig_only(name, path):
         save_benchmark_results(name, algo, lib, times)
         task_progress()
 
+def build_eg(edge_index):
+    def _to_list(x):
+        if torch is not None and isinstance(x, torch.Tensor):
+            return x.cpu().numpy().tolist()
+        return np.asarray(x).tolist()
+    u = _to_list(edge_index[0])
+    v = _to_list(edge_index[1])
+    G = eg.Graph()
+    G.add_edges_from(zip(u, v))
+    return G
+
+def run_dataset_eg_only(name, path):
+    """使用多进程运行 EasyGraph 相关的算法测试"""
+    print(f'===== Dataset: {name} (EasyGraph Multiprocessing) =====')
+    if not os.path.exists(path):
+        print(f'WARNING: missing path {path}, skip')
+        return
+
+    # 1. 加载数据并构建 EasyGraph 图对象 (从文件)
+    dir_path = os.path.dirname(path)
+    edgelist_path = os.path.join(dir_path, 'edge_index.edgelist')
+    
+    # 确保有 edgelist 文件
+    if not os.path.exists(edgelist_path):
+        edge_index = load_edges(path)
+        save_edges_edgelist(edge_index, edgelist_path)
+    
+    # 从 edgelist 文件加载图（推荐方式）
+    g = None
+    try:
+        g = eg.Graph()
+        g.add_edges_from_file(edgelist_path, weighted=False)
+    except Exception as e:
+        print(f"Error loading graph from file: {e}")
+        return
+    
+    if g is None:
+        print("WARNING: Failed to create EasyGraph, skipping benchmarks")
+        return
+
+    # 2. 定义要测试的 n_workers 值
+    worker_list = [8, 16, 32]
+    
+    # 3. 定义 EasyGraph 多进程算法任务
+    algorithms = [
+        ('clustering', 'eg.clustering(g, n_workers=n_workers)'),
+        ('hierarchy', 'eg.hierarchy(g, n_workers=n_workers)'),
+        ('cc', 'eg.closeness_centrality(g, n_workers=n_workers)'),
+        ('bc', 'eg.betweenness_centrality(g, n_workers=n_workers)'),
+    ]
+    
+    # 4. 循环不同的 worker 数量进行基准测试
+    for n_workers in worker_list:
+        print(f"\n========== n_workers = {n_workers} ==========")
+        
+        # 为每个 n_workers 值创建上下文
+        g_context = {
+            'eg': eg,
+            'g': g,
+            'n_workers': n_workers,
+        }
+        
+        for algo_name, stmt in algorithms:
+            print(f"\n========{algo_name}========")
+            try:
+                times = benchmark_runs(stmt, g_context, runs=5)
+                save_benchmark_results(name, algo_name, f'eg_mp_{n_workers}', times)
+            except Exception as e:
+                print(f"Error running {stmt}: {e}")
+
 def main():
-    # Only ensure CSV exists for MGTAB
-    ensure_csv_in_dir('../dataset/MGTAB')
-    # Run only MGTAB dataset with NX and igraph
-    dataset = ('MGTAB', '../dataset/MGTAB/edge_index.csv')
-    name, path = dataset
-    run_dataset_nx_ig_only(name, path)
+    # 设定数据集路径
+    dataset_name = 'TwiBot20'
+    dataset_path = '../dataset/TwiBot20/edge.csv'
+    
+    # 确保 CSV 存在 (如果原始是 .pt)
+    ensure_csv_in_dir('../dataset/TwiBot20')
+    
+    # 仅运行 EasyGraph 测试
+    run_dataset_eg_only(dataset_name, dataset_path)
 
 if __name__ == '__main__':
     main()
