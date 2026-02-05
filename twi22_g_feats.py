@@ -3,9 +3,9 @@ import easygraph as eg
 import numpy as np
 import os
 
-def get_val(container, idx, default=0.0):
+def get_val(container, key, idx, default=0.0):
     if isinstance(container, dict):
-        return container.get(idx, default)
+        return container.get(key, default)
     elif isinstance(container, (list, np.ndarray)):
         if 0 <= idx < len(container):
             return container[idx]
@@ -13,6 +13,7 @@ def get_val(container, idx, default=0.0):
 
 def _features_matrix(G):
     nodes = list(G.nodes)
+    node_index = G.node_index
     
     # EasyGraph functions
     deg = G.degree()
@@ -77,14 +78,15 @@ def _features_matrix(G):
 
     feats = []
     for n in nodes:
+        idx = node_index[n]
         feats.append([
-            float(get_val(deg, n, 0)),
-            float(get_val(clust, n, 0.0)),
-            float(get_val(close, n, 0.0)),
-            float(get_val(btw, n, 0.0)),
-            float(get_val(pr, n, 0.0)),
-            float(get_val(core, n, 0)),
-            float(get_val(andeg, n, 0.0)),
+            float(get_val(deg, n, idx, 0)),
+            float(get_val(clust, n, idx, 0.0)),
+            float(get_val(close, n, idx, 0.0)),
+            float(get_val(btw, n, idx, 0.0)),
+            float(get_val(pr, n, idx, 0.0)),
+            float(get_val(core, n, idx, 0)),
+            float(get_val(andeg, n, idx, 0.0)),
         ])
     return nodes, np.asarray(feats, dtype=np.float32)
 
@@ -108,8 +110,16 @@ def main():
     print("Computing features...")
     nodes, feats = _features_matrix(G)
     
+    # Convert nodes to integers for tensor storage
+    try:
+        nodes_int = [int(n) for n in nodes]
+        nodes_tensor = torch.as_tensor(nodes_int, dtype=torch.long)
+    except ValueError:
+        print("Warning: Node labels are not numeric. Saving internal 0..N-1 indices.")
+        nodes_tensor = torch.arange(len(nodes), dtype=torch.long)
+    
     out = {
-        'nodes': torch.as_tensor(nodes, dtype=torch.long),
+        'nodes': nodes_tensor,
         'feats': torch.as_tensor(feats),
     }
     torch.save(out, 'twibot22_node_feats.pt')
