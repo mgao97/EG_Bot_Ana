@@ -312,140 +312,140 @@ if __name__ == "__main__":
     rng = np.random.default_rng(seed=42)
     common_indices = rng.choice(valid_indices, max_n, replace=False)
 
-    print("Graph embedding via DeepWalk...........")
-    dw_path = 'graph_embs/dw_twibot22_emb.pt'
-    if os.path.exists(dw_path):
-        print(f"Loading DeepWalk embeddings from {dw_path}...")
-        dw_emb = torch.load(dw_path, map_location='cpu')
-    else:
-        deepwalk_emb, _ = deepwalk(g, dimensions=128, walk_length=80, num_walks=10)
-        dw_emb = _emb_matrix(deepwalk_emb, nodes_order, dim_hint=128)
-        if torch is not None:
-            if not os.path.exists('graph_embs'):
-                os.makedirs('graph_embs')
-            torch.save(dw_emb, dw_path)
-    print(dw_emb)
+    # print("Graph embedding via DeepWalk...........")
+    # dw_path = 'graph_embs/dw_twibot22_emb.pt'
+    # if os.path.exists(dw_path):
+    #     print(f"Loading DeepWalk embeddings from {dw_path}...")
+    #     dw_emb = torch.load(dw_path, map_location='cpu')
+    # else:
+    #     deepwalk_emb, _ = deepwalk(g, dimensions=128, walk_length=80, num_walks=10)
+    #     dw_emb = _emb_matrix(deepwalk_emb, nodes_order, dim_hint=128)
+    #     if torch is not None:
+    #         if not os.path.exists('graph_embs'):
+    #             os.makedirs('graph_embs')
+    #         torch.save(dw_emb, dw_path)
+    # print(dw_emb)
 
-    tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    dw_emb_sub = dw_emb[common_indices]
-    labels_sub = labels[common_indices]
-    z = tsne.fit_transform(dw_emb_sub)
-    z_data = np.vstack((z.T, labels_sub)).T
-    df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
-    df_tsne['类别'] = df_tsne['类别'].astype(int)
-    # 将数值类别映射为中文标签
-    label_map = {0: "人类", 1: "社交机器人"}
-    df_tsne['类别'] = df_tsne['类别'].map(label_map)
-    # 处理未映射的标签（如果有）
-    df_tsne['类别'] = df_tsne['类别'].fillna('未知')
-    plt.figure(figsize=(8, 8))
-    sns.set(font_scale=1.5)
-    ax = plt.gca()
-    sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
-    for lbl in ax.get_xticklabels():
-        lbl.set_fontname(ROMAN_FONT)
-        lbl.set_fontsize(18)
-    for lbl in ax.get_yticklabels():
-        lbl.set_fontname(ROMAN_FONT)
-        lbl.set_fontsize(18)
-    plt.xlabel('')
-    plt.ylabel('')
-    legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
-    plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
-    plt.savefig("figs/dw_twibot22.pdf", bbox_inches="tight")
-    plt.show()
+    # tsne = TSNE(n_components=2, verbose=1, random_state=0)
+    # dw_emb_sub = dw_emb[common_indices]
+    # labels_sub = labels[common_indices]
+    # z = tsne.fit_transform(dw_emb_sub)
+    # z_data = np.vstack((z.T, labels_sub)).T
+    # df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
+    # df_tsne['类别'] = df_tsne['类别'].astype(int)
+    # # 将数值类别映射为中文标签
+    # label_map = {0: "人类", 1: "社交机器人"}
+    # df_tsne['类别'] = df_tsne['类别'].map(label_map)
+    # # 处理未映射的标签（如果有）
+    # df_tsne['类别'] = df_tsne['类别'].fillna('未知')
+    # plt.figure(figsize=(8, 8))
+    # sns.set(font_scale=1.5)
+    # ax = plt.gca()
+    # sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
+    # for lbl in ax.get_xticklabels():
+    #     lbl.set_fontname(ROMAN_FONT)
+    #     lbl.set_fontsize(18)
+    # for lbl in ax.get_yticklabels():
+    #     lbl.set_fontname(ROMAN_FONT)
+    #     lbl.set_fontsize(18)
+    # plt.xlabel('')
+    # plt.ylabel('')
+    # legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    # plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
+    # plt.savefig("figs/dw_twibot22.pdf", bbox_inches="tight")
+    # plt.show()
 
-    print("Graph embedding via Node2Vec..............")
-    n2v_path = 'graph_embs/n2v_twibot22_emb.pt'
-    if os.path.exists(n2v_path):
-        print(f"Loading Node2Vec embeddings from {n2v_path}...")
-        n2v_emb = torch.load(n2v_path, map_location='cpu')
-    else:
-        node2vec_emb, _ = node2vec(
-            g, dimensions=128, walk_length=80, num_walks=10, p=4, q=0.25
-        )
-        n2v_emb = _emb_matrix(node2vec_emb, nodes_order, dim_hint=128)
-        if torch is not None:
-            if not os.path.exists('graph_embs'):
-                os.makedirs('graph_embs')
-            torch.save(n2v_emb, n2v_path)
+    # print("Graph embedding via Node2Vec..............")
+    # n2v_path = 'graph_embs/n2v_twibot22_emb.pt'
+    # if os.path.exists(n2v_path):
+    #     print(f"Loading Node2Vec embeddings from {n2v_path}...")
+    #     n2v_emb = torch.load(n2v_path, map_location='cpu')
+    # else:
+    #     node2vec_emb, _ = node2vec(
+    #         g, dimensions=128, walk_length=80, num_walks=10, p=4, q=0.25
+    #     )
+    #     n2v_emb = _emb_matrix(node2vec_emb, nodes_order, dim_hint=128)
+    #     if torch is not None:
+    #         if not os.path.exists('graph_embs'):
+    #             os.makedirs('graph_embs')
+    #         torch.save(n2v_emb, n2v_path)
 
-    tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    n2v_emb_sub = n2v_emb[common_indices]
-    labels_sub = labels[common_indices]
-    z = tsne.fit_transform(n2v_emb_sub)
-    z_data = np.vstack((z.T, labels_sub)).T
-    df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
-    df_tsne['类别'] = df_tsne['类别'].astype(int)
-    # 将数值类别映射为中文标签
-    label_map = {0: "人类", 1: "社交机器人"}
-    df_tsne['类别'] = df_tsne['类别'].map(label_map)
-    # 处理未映射的标签（如果有）
-    df_tsne['类别'] = df_tsne['类别'].fillna('未知')
-    plt.figure(figsize=(8, 8))
-    sns.set(font_scale=1.5)
-    ax = plt.gca()
-    sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
+    # tsne = TSNE(n_components=2, verbose=1, random_state=0)
+    # n2v_emb_sub = n2v_emb[common_indices]
+    # labels_sub = labels[common_indices]
+    # z = tsne.fit_transform(n2v_emb_sub)
+    # z_data = np.vstack((z.T, labels_sub)).T
+    # df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
+    # df_tsne['类别'] = df_tsne['类别'].astype(int)
+    # # 将数值类别映射为中文标签
+    # label_map = {0: "人类", 1: "社交机器人"}
+    # df_tsne['类别'] = df_tsne['类别'].map(label_map)
+    # # 处理未映射的标签（如果有）
+    # df_tsne['类别'] = df_tsne['类别'].fillna('未知')
+    # plt.figure(figsize=(8, 8))
+    # sns.set(font_scale=1.5)
+    # ax = plt.gca()
+    # sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     
-    for lbl in ax.get_xticklabels():
-        lbl.set_fontname(ROMAN_FONT)
-        lbl.set_fontsize(18)
-    for lbl in ax.get_yticklabels():
-        lbl.set_fontname(ROMAN_FONT)
-        lbl.set_fontsize(18)
-    plt.xlabel('')
-    plt.ylabel('')
-    legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
-    plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
-    plt.savefig("figs/n2v_twibot22.pdf", bbox_inches="tight")
-    plt.show()
+    # for lbl in ax.get_xticklabels():
+    #     lbl.set_fontname(ROMAN_FONT)
+    #     lbl.set_fontsize(18)
+    # for lbl in ax.get_yticklabels():
+    #     lbl.set_fontname(ROMAN_FONT)
+    #     lbl.set_fontsize(18)
+    # plt.xlabel('')
+    # plt.ylabel('')
+    # legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    # plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
+    # plt.savefig("figs/n2v_twibot22.pdf", bbox_inches="tight")
+    # plt.show()
 
-    print("Graph embedding via LINE........")
-    l_path = 'graph_embs/line_twibot22_emb.pt'
-    if os.path.exists(l_path):
-        print(f"Loading LINE embeddings from {l_path}...")
-        l_emb = torch.load(l_path, map_location='cpu')
-    else:
-        model = LINE(dimension=128, walk_length=80, walk_num=10, negative=5, batch_size=128, init_alpha=0.025, order=2)
+    # print("Graph embedding via LINE........")
+    # l_path = 'graph_embs/line_twibot22_emb.pt'
+    # if os.path.exists(l_path):
+    #     print(f"Loading LINE embeddings from {l_path}...")
+    #     l_emb = torch.load(l_path, map_location='cpu')
+    # else:
+    #     model = LINE(dimension=128, walk_length=80, walk_num=10, negative=5, batch_size=128, init_alpha=0.025, order=2)
 
-        model.train()
-        line_emb = model(g, return_dict=True)
+    #     model.train()
+    #     line_emb = model(g, return_dict=True)
 
-        l_emb = _emb_matrix(line_emb, nodes_order, dim_hint=128)
-        if torch is not None:
-            if not os.path.exists('graph_embs'):
-                os.makedirs('graph_embs')
-            torch.save(l_emb, l_path)
+    #     l_emb = _emb_matrix(line_emb, nodes_order, dim_hint=128)
+    #     if torch is not None:
+    #         if not os.path.exists('graph_embs'):
+    #             os.makedirs('graph_embs')
+    #         torch.save(l_emb, l_path)
 
-    tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    l_emb_sub = l_emb[common_indices]
-    labels_sub = labels[common_indices]
-    z = tsne.fit_transform(l_emb_sub)
-    z_data = np.vstack((z.T, labels_sub)).T
-    df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
-    df_tsne['类别'] = df_tsne['类别'].astype(int)
-    # 将数值类别映射为中文标签
-    label_map = {0: "人类", 1: "社交机器人"}
-    df_tsne['类别'] = df_tsne['类别'].map(label_map)
-    # 处理未映射的标签（如果有）
-    df_tsne['类别'] = df_tsne['类别'].fillna('未知')
-    plt.figure(figsize=(8, 8))
-    sns.set(font_scale=1.5)
-    ax = plt.gca()
-    sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
+    # tsne = TSNE(n_components=2, verbose=1, random_state=0)
+    # l_emb_sub = l_emb[common_indices]
+    # labels_sub = labels[common_indices]
+    # z = tsne.fit_transform(l_emb_sub)
+    # z_data = np.vstack((z.T, labels_sub)).T
+    # df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
+    # df_tsne['类别'] = df_tsne['类别'].astype(int)
+    # # 将数值类别映射为中文标签
+    # label_map = {0: "人类", 1: "社交机器人"}
+    # df_tsne['类别'] = df_tsne['类别'].map(label_map)
+    # # 处理未映射的标签（如果有）
+    # df_tsne['类别'] = df_tsne['类别'].fillna('未知')
+    # plt.figure(figsize=(8, 8))
+    # sns.set(font_scale=1.5)
+    # ax = plt.gca()
+    # sns.scatterplot(data=df_tsne, hue='类别', x='x', y='y', palette=sns.color_palette("Set2"))
     
-    for lbl in ax.get_xticklabels():
-        lbl.set_fontname(ROMAN_FONT)
-        lbl.set_fontsize(18)
-    for lbl in ax.get_yticklabels():
-        lbl.set_fontname(ROMAN_FONT)
-        lbl.set_fontsize(18)
-    plt.xlabel('')
-    plt.ylabel('')
-    legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
-    plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
-    plt.savefig("figs/line_twibot22.pdf", bbox_inches="tight")
-    plt.show()
+    # for lbl in ax.get_xticklabels():
+    #     lbl.set_fontname(ROMAN_FONT)
+    #     lbl.set_fontsize(18)
+    # for lbl in ax.get_yticklabels():
+    #     lbl.set_fontname(ROMAN_FONT)
+    #     lbl.set_fontsize(18)
+    # plt.xlabel('')
+    # plt.ylabel('')
+    # legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
+    # plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
+    # plt.savefig("figs/line_twibot22.pdf", bbox_inches="tight")
+    # plt.show()
 
     print("Graph embedding via SDNE...........")
     sd_path = 'graph_embs/sd_twibot22_emb.pt'
@@ -456,12 +456,12 @@ if __name__ == "__main__":
         # Use our custom SparseSDNE to avoid OOM
         node_size_val = (max(g.nodes) + 1) if len(g.nodes) > 0 else 0
         # Use smaller hidden dims for memory efficiency if needed, but 200/100 should be fine with sparse
-        model = SparseSDNE(g, node_size=node_size_val, nhid0=200, nhid1=100, dropout=0.25, alpha=3e-2, beta=5)
+        model = SparseSDNE(g, node_size=node_size_val, nhid0=128, nhid1=64, dropout=0.25, alpha=3e-2, beta=5)
         
         # Train
-        sdne_emb = model.train_model(epochs=100, bs=100, device=device) 
+        sdne_emb = model.train_model(epochs=40, bs=100, device=device) 
 
-        sd_emb = _emb_matrix(sdne_emb, nodes_order, dim_hint=100)
+        sd_emb = _emb_matrix(sdne_emb, nodes_order, dim_hint=64)
         if torch is not None:
             if not os.path.exists('graph_embs'):
                 os.makedirs('graph_embs')

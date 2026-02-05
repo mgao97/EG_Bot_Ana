@@ -127,7 +127,26 @@ if __name__ == "__main__":
     device = torch.device('cuda:0' if (torch is not None and torch.cuda.is_available()) else 'cpu') if torch is not None else 'cpu'
     g = _build_eg_from_csv('/NVMeDATA/gxj_data/hyperscan_cikm25/mgtab/edge_index.csv')
     labels_raw = _load_labels_pt('/NVMeDATA/gxj_data/hyperscan_cikm25/mgtab/labels_bot.pt')
+    
+    # 自动检测标签格式：如果是 indices (max > 1)，则转换为 0/1 向量
+    if len(labels_raw) > 0 and labels_raw.max() > 1:
+        print("Detected label file contains indices, converting to binary labels...")
+        # 假设 g.nodes 的最大 ID 覆盖了所有节点，或者使用 len(g.nodes) 如果 ID 是连续的
+        # 安全起见，创建一个足够大的数组
+        max_id = max(max(g.nodes), labels_raw.max()) + 1
+        new_labels = np.zeros(max_id, dtype=int)
+        new_labels[labels_raw] = 1
+        # 如果需要与 g.nodes 对齐
+        labels_raw = np.array([new_labels[n] for n in list(g.nodes)])
+    
     nodes_order = list(g.nodes)
+
+    # Pre-calculate sampling indices to ensure consistent node selection across all methods
+    # Assuming labels_raw aligns with nodes_order or is sufficiently long
+    n_nodes = len(nodes_order)
+    max_n = min(1000, n_nodes)
+    rng = np.random.default_rng(seed=42)
+    common_indices = rng.choice(n_nodes, max_n, replace=False)
 
     print("Graph embedding via DeepWalk...........")
     dw_path = 'graph_embs/dw_mgtab_emb.pt'
@@ -144,10 +163,8 @@ if __name__ == "__main__":
     print(dw_emb)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    max_n = min(1000, len(dw_emb))
-    indices = random.sample(range(len(dw_emb)), max_n)
-    dw_emb_sub = dw_emb[indices]
-    labels_dw = _align_labels(labels_raw, len(dw_emb))[indices]
+    dw_emb_sub = dw_emb[common_indices]
+    labels_dw = _align_labels(labels_raw, len(dw_emb))[common_indices]
     z = tsne.fit_transform(dw_emb_sub)
     z_data = np.vstack((z.T, labels_dw)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
@@ -168,7 +185,6 @@ if __name__ == "__main__":
         lbl.set_fontsize(18)
     plt.xlabel('')
     plt.ylabel('')
-    # 设置 legend 为宋体
     legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
     plt.savefig("figs/dw_mgtab.pdf", bbox_inches="tight")
@@ -190,10 +206,8 @@ if __name__ == "__main__":
             torch.save(n2v_emb, n2v_path)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    max_n = min(1000, len(n2v_emb))
-    indices = random.sample(range(len(n2v_emb)), max_n)
-    n2v_emb_sub = n2v_emb[indices]
-    labels_n2v = _align_labels(labels_raw, len(n2v_emb))[indices]
+    n2v_emb_sub = n2v_emb[common_indices]
+    labels_n2v = _align_labels(labels_raw, len(n2v_emb))[common_indices]
     z = tsne.fit_transform(n2v_emb_sub)
     z_data = np.vstack((z.T, labels_n2v)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
@@ -214,7 +228,6 @@ if __name__ == "__main__":
         lbl.set_fontsize(18)
     plt.xlabel('')
     plt.ylabel('')
-    # 设置 legend 为宋体
     legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
     plt.savefig("figs/n2v_mgtab.pdf", bbox_inches="tight")
@@ -238,10 +251,8 @@ if __name__ == "__main__":
             torch.save(l_emb, l_path)
 
     tsne = TSNE(n_components=2, verbose=1, random_state=0)
-    max_n = min(1000, len(l_emb))
-    indices = random.sample(range(len(l_emb)), max_n)
-    l_emb_sub = l_emb[indices]
-    labels_line = _align_labels(labels_raw, len(l_emb))[indices]
+    l_emb_sub = l_emb[common_indices]
+    labels_line = _align_labels(labels_raw, len(l_emb))[common_indices]
     z = tsne.fit_transform(l_emb_sub)
     z_data = np.vstack((z.T, labels_line)).T
     df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
@@ -262,7 +273,6 @@ if __name__ == "__main__":
         lbl.set_fontsize(18)
     plt.xlabel('')
     plt.ylabel('')
-    # 设置 legend 为宋体
     legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
     plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
     plt.savefig("figs/line_mgtab.pdf", bbox_inches="tight")
@@ -284,10 +294,8 @@ if __name__ == "__main__":
             torch.save(sd_emb, sd_path)
         print(sd_emb)
         tsne = TSNE(n_components=2, verbose=1, random_state=0)
-        max_n = min(1000, len(sd_emb))
-        indices = random.sample(range(len(sd_emb)), max_n)
-        sd_emb_sub = sd_emb[indices]
-        labels_sdne = _align_labels(labels_raw, len(sd_emb))[indices]
+        sd_emb_sub = sd_emb[common_indices]
+        labels_sdne = _align_labels(labels_raw, len(sd_emb))[common_indices]
         z = tsne.fit_transform(sd_emb_sub)
         z_data = np.vstack((z.T, labels_sdne)).T
         df_tsne = pd.DataFrame(z_data, columns=['x', 'y', '类别'])
@@ -308,7 +316,6 @@ if __name__ == "__main__":
             lbl.set_fontsize(18)
         plt.xlabel('')
         plt.ylabel('')
-        # 设置 legend 为宋体
         legend = ax.legend(loc='upper right', prop={'family':CHN_FONT,'size':18}, title='类别')
         plt.setp(legend.get_title(), fontname=CHN_FONT, fontsize=18)
         plt.savefig("figs/sdne_mgtab.pdf", bbox_inches="tight")
