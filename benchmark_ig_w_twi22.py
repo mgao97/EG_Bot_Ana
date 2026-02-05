@@ -680,9 +680,9 @@ def run_dataset_eg_only(name, path):
     if G_eg is not None:
         # GraphC 支持的基础算法
         tasks = [
-            ('cc', 'eg_graphc', 'eg.closeness_centrality(G_eg)'),
+            # ('cc', 'eg_graphc', 'eg.closeness_centrality(G_eg)'),
             # ('bc', 'eg_graphc', 'eg.betweenness_centrality(G_eg)'),
-            # ('pr', 'eg_graphc', 'eg.pagerank(G_eg)'),
+            ('pr', 'eg_graphc', 'eg.pagerank(G_eg)'),
         ]
         # tasks = []
         
@@ -703,6 +703,88 @@ def run_dataset_eg_only(name, path):
             print(f"Error running {stmt}: {e}")
         task_progress()
 
+def run_dataset_ig_only(name, path):
+    """只运行 igraph 相关的算法测试"""
+    print(f'===== Dataset: {name} (igraph Only) =====')
+    if not os.path.exists(path):
+        print(f'WARNING: missing path {path}, skip')
+        return
+
+    # 1. 加载数据并构建 igraph 图对象
+    dir_path = os.path.dirname(path)
+    edgelist_path = os.path.join(dir_path, 'edge_index.edgelist')
+    
+    # 确保有 edgelist 文件
+    if not os.path.exists(edgelist_path):
+        edge_index = load_edges(path)
+        save_edges_edgelist(edge_index, edgelist_path)
+    
+    # 构建 igraph 对象
+    G_ig, id2idx = build_ig(load_edges(path))
+    g_ig_edgelist = None
+    try:
+        g_ig_edgelist = ig.Graph.Read_Edgelist(edgelist_path, False)
+    except Exception:
+        g_ig_edgelist = None
+
+    # 2. 准备采样节点
+    ig_node_list = []
+    if g_ig_edgelist is not None:
+        vs = list(range(g_ig_edgelist.vcount()))
+        ig_node_list = sample_nodes(vs, min(1000, len(vs)), 2026)
+    
+    if G_ig is not None:
+        # igraph 使用 vcount() 方法获取顶点数，不使用 .nodes 属性
+        sample_idx = list(range(min(1000, G_ig.vcount())))
+    else:
+        sample_idx = []
+
+    # 3. 准备执行上下文
+    g_context = {
+        'G_ig': G_ig,
+        'g_ig_edgelist': g_ig_edgelist,
+        'ig_node_list': ig_node_list,
+        'sample_idx': sample_idx,
+        'algo_cc_ig': algo_cc_ig,
+        'algo_bc_ig': algo_bc_ig,
+        'algo_pr_ig': algo_pr_ig,
+        'algo_kcore_ig': algo_kcore_ig,
+        'algo_hierarchy_ig': algo_hierarchy_ig,
+    }
+
+    # 4. 定义 igraph 任务列表
+    tasks = []
+    
+    if G_ig is not None:
+        tasks.append(('cc', 'ig', 'algo_cc_ig(G_ig, sample_idx)'))
+        # tasks.append(('bc', 'ig', 'algo_bc_ig(G_ig, sample_idx)'))
+        # tasks.append(('pr', 'ig', 'algo_pr_ig(G_ig)'))
+        # tasks.append(('kcore', 'ig', 'algo_kcore_ig(G_ig)'))
+        # tasks.append(('hierarchy', 'ig', 'algo_hierarchy_ig(G_ig)'))
+    
+    # if g_ig_edgelist is not None:
+    #     tasks += [
+    #         ('distances', 'ig_read', 'g_ig_edgelist.distances(source=ig_node_list, weights=[1]*len(g_ig_edgelist.es))'),
+    #         ('kcore', 'ig_read', 'g_ig_edgelist.coreness()'),
+    #         ('bc', 'ig_read', 'g_ig_edgelist.betweenness(directed=False, weights=[1]*len(g_ig_edgelist.es))'),
+    #         ('cc', 'ig_read', 'g_ig_edgelist.closeness(weights=[1]*len(g_ig_edgelist.es))'),
+    #     ]
+
+    if not tasks:
+        print(f"WARNING: igraph 图对象未成功创建，跳过 {name} 的基准测试")
+        return
+
+    task_progress = _make_progress(f'[{name}] Running igraph tasks', len(tasks))
+    
+    # 5. 循环执行 Benchmark
+    for algo, lib, stmt in tasks:
+        try:
+            times = benchmark_runs(stmt, g_context, runs=5)
+            save_benchmark_results(name, algo, lib, times)
+        except Exception as e:
+            print(f"Error running {stmt}: {e}")
+        task_progress()
+
 def main():
     # 设定数据集路径
     dataset_name = 'TwiBot22'
@@ -711,8 +793,8 @@ def main():
     # 确保 CSV 存在 (如果原始是 .pt)
     ensure_csv_in_dir('../dataset/TwiBot22')
     
-    # 仅运行 EasyGraph 测试
-    run_dataset_eg_only(dataset_name, dataset_path)
+    # 仅运行 igraph 测试
+    run_dataset_ig_only(dataset_name, dataset_path)
 
 if __name__ == '__main__':
     main()
